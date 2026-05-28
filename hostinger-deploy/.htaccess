@@ -1,0 +1,42 @@
+# QA Demo Store – Apache config for Hostinger shared hosting.
+# Place this file at: public_html/.htaccess
+#
+# It does two things:
+#   1) Lets the React Router (BrowserRouter) handle client-side routes by
+#      redirecting unknown URLs to /index.html.
+#   2) Leaves real files (incl. /api/*.php) alone so PHP still executes.
+
+Options -MultiViews
+RewriteEngine On
+
+# Force HTTPS (optional – uncomment after SSL is active on Hostinger)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Do NOT rewrite calls to the PHP API
+RewriteCond %{REQUEST_URI} ^/api/ [NC]
+RewriteRule ^ - [L]
+
+# If the requested path is an existing file or directory, serve it as-is
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Otherwise hand the request to React's index.html
+RewriteRule ^ index.html [L]
+
+# Gzip for faster delivery
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css                 "access plus 1 month"
+    ExpiresByType application/javascript   "access plus 1 month"
+    ExpiresByType image/png                "access plus 1 month"
+    ExpiresByType image/jpeg               "access plus 1 month"
+    ExpiresByType image/svg+xml            "access plus 1 month"
+    ExpiresByType font/woff2               "access plus 1 year"
+</IfModule>
