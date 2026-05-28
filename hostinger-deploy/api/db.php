@@ -8,11 +8,11 @@
  * not served as text).
  */
 
-// === EDIT THESE ON HOSTINGER (hPanel → Databases → MySQL) ===
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'your_database_name');
-define('DB_USER', 'your_database_user');
-define('DB_PASS', 'your_database_password');
+// === Hostinger MySQL credentials (hPanel → Databases → MySQL) ===
+define('DB_HOST', 'srv831.hstgr.io');
+define('DB_NAME', 'u797308362_company');
+define('DB_USER', 'u797308362_chirag_khimani');
+define('DB_PASS', 'SpecialTrust@123');
 define('DB_CHARSET', 'utf8mb4');
 
 // --- CORS (allow same-origin React build; tweak if frontend is on a different domain) ---
