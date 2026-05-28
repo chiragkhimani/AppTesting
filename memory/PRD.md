@@ -6,53 +6,48 @@ deployable to **Hostinger shared hosting** (PHP + MySQL backend, React static
 frontend). A FastAPI + MongoDB mirror is kept in `/app/backend/server.py` for
 local preview only; both backends expose an identical JSON contract.
 
-## Architecture
-```
-React build (static) ──HTTP──▶ PHP REST API (api/*.php) ──▶ MySQL
-                                       │ Bearer-token auth
-                                       ▼
-                                  auth_tokens table
-```
-For preview: FastAPI mirror at `/app/backend/server.py` (MongoDB).
-
 ## Implemented (timeline)
 
-### 2026-02-28 – MVP (v1)
-- Login + product list + product details + cart + checkout + order confirmation
-- localStorage auth (no token) + cart
-- 3 demo users (plaintext) + 6 products
-- PHP/MySQL deliverables for Hostinger + `.htaccess` + DEPLOYMENT.md
-- Testing agent: 100% backend (10/10), 100% frontend.
+### 2026-02-28 – v1 MVP
+- Login + product list + product details + cart + checkout + order confirmation.
+- localStorage auth + cart. 3 plaintext demo users + 6 products. PHP/MySQL deliverables.
 
-### 2026-02-28 – v2 (current)
-- **Bearer-token auth**: `POST /api/auth/login.php` issues a 64-hex token (24h TTL); axios interceptor injects `Authorization: Bearer <token>`.
-- **bcrypt** password storage everywhere (PHP `password_hash`, Python `bcrypt`).
-- **MySQL schema**: `users` gains `email`, `password_hash`, `created_at`; new `auth_tokens` table. Migration v2 script preserves existing data.
-- **Protected APIs**: GET/POST `/api/users.php`, GET/POST `/api/orders.php` (incl. `?user_id=N` filter). Products remain public.
-- **Server-side total recomputation** in `POST /api/orders.php` — client `total`/`price` ignored; verified by tests (bogus price=999999 → final total still $69.97).
-- **Order success page** redesigned with prominent checkmark and `✅ Your order has been placed` message (`data-testid="order-success-message"`).
-- **User Management page** (`/users`): create users (`username` + `email` + `password` + optional names) and expand any user row to view their order history (items, totals, dates).
-- **UI polish**: hover lift + emerald glow on product cards, animated button transitions, loading skeletons for products grid, subtle backdrop-blur header, gradient accent stripe on the order-success card.
-- Testing agent v2: 17/17 backend, 100% frontend after fixing two regressions (checkout redirect order, cart persistence on hard reload).
+### 2026-02-28 – v2
+- Bearer-token auth (`POST /api/auth/login.php`, 24h TTL).
+- bcrypt password storage; `users` gains email/password_hash/created_at; new `auth_tokens` table.
+- Protected `/api/users.php` (CRUD) + `/api/orders.php`.
+- Server-side total recomputation.
+- Order success page with checkmark + ✅ message.
+- User Management page in React.
+- Testing agent: 17/17 backend, 100% FE after 2 fixes.
+
+### 2026-02-28 – v3 (current)
+- **Login page cleanup**: removed hardcoded "Accepted users" / password block; empty placeholders; added Sign-up link.
+- **Public signup**: new `POST /api/signup.php` (also in PHP). Validates username pattern, email format, ≥6-char password; bcrypt-hashes; rejects duplicates (400). Redirects to /login with success toast.
+- **User Management removed**: dropped `users-link` from header, deleted `UserManagement.jsx`, removed `POST /api/users.php` and `GET /api/users.php` endpoints from both backends.
+- **My Orders page** (`/orders`) replaces user management — shows the current user's own orders via `GET /api/orders.php` (now defaults to the authenticated user; `?user_id=N` still works).
+- **Checkout simplified**: only `full_name + address + city + state + pincode + phone`; payment fields removed. Schema migrated via `sql/migration_v3.sql`.
+- **Toast notifications** via sonner — login/signup/logout/order success+failure all surface as toasts (top-right, rich colors).
+- **`/api/profile.php`** added for the logged-in user.
+- **Testing agent v3**: 28/28 backend pytest, 100% frontend E2E. Zero outstanding issues. (Iteration-2 redirect bug fixed by a `submitted` flag in Checkout.)
 
 ## Backlog
 **P1**
-- Add password reset and "change my password" UI.
-- Per-user role flag (`is_admin`) — restrict POST `/api/users.php` to admins.
-- `problem_user` quirks (shuffled product names, broken image) like real saucedemo.
-- Rate-limit `/api/auth/login.php` (currently no brute-force protection).
+- Rate-limit `/api/auth/login.php` & `/api/signup.php` against brute force.
+- "Forgot password" → email reset flow (uses Hostinger SMTP / Resend).
+- Admin role + admin-only screens (re-introduce a guarded `/users` page).
 
 **P2**
-- "Order history for me" UI on `/orders` (separate from User Management).
-- TTL-based cleanup job for expired `auth_tokens` rows.
-- Email verification flow.
+- TTL cleanup cron for `auth_tokens`.
+- `problem_user` quirks (shuffled product names, broken image) for negative-test practice.
+- Order status updates (pending → shipped → delivered) + filterable Orders page.
 
 **P3**
-- CI workflow that builds React + lints PHP.
-- "Reset demo data" admin endpoint.
+- CI workflow: build React + lint PHP.
+- Demo "reset DB" admin endpoint.
 
 ## Next tasks
-- Wait for the user to deploy v2 to Hostinger:
-  1. Run `sql/schema.sql` + `sql/seed.sql` (fresh) OR `sql/migration_v2.sql` (upgrade) in phpMyAdmin.
-  2. Confirm `api/db.php` credentials.
-  3. `REACT_APP_API_BASE=/api yarn build` and upload `frontend/build/*`, `.htaccess`, `api/*` (including new `api/auth/login.php`) to `public_html/`.
+- Deploy v3 to Hostinger:
+  1. phpMyAdmin → run `sql/schema.sql` + `sql/seed.sql` (fresh) OR `sql/migration_v3.sql` (upgrade).
+  2. Verify `api/db.php` constants.
+  3. `REACT_APP_API_BASE=/api yarn build`; upload `frontend/build/*`, `.htaccess`, and `api/` (incl. new `api/signup.php`, `api/profile.php`, removed `api/users.php`).
