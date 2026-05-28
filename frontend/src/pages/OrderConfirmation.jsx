@@ -15,10 +15,11 @@ const OrderConfirmation = () => {
           data-testid="order-confirmation"
           className="relative flex flex-col items-center gap-5 overflow-hidden rounded-3xl border border-emerald-100 bg-white p-10 text-center shadow-xl shadow-emerald-100/30"
         >
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400" />
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-300 via-lime-400 to-emerald-300 opacity-95 animate-pulse" />
           <div className="relative">
             <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-emerald-200 opacity-75" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-300">
+            <span className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-emerald-200 via-emerald-100 to-lime-200 opacity-80 blur-sm animate-pulse" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 via-emerald-500 to-lime-500 text-white shadow-lg shadow-emerald-300 ring-1 ring-emerald-200/60">
               <CheckCircle2 className="h-12 w-12" strokeWidth={2.4} />
             </div>
           </div>
