@@ -49,8 +49,25 @@ jobs:
 
       - name: Deploy build to Hostinger (rsync over SSH)
         run: |
+          # Deploy the React build output, but keep server-managed folders/files
+          # like /api and /.htaccess that are deployed separately below.
           rsync -az --delete \
+            --exclude 'api/' \
+            --exclude '.htaccess' \
             -e "ssh -p ${HOSTINGER_PORT}" \
             frontend/build/ \
             "${HOSTINGER_USER}@${HOSTINGER_HOST}:${HOSTINGER_TARGET}/"
+
+      - name: Deploy PHP API to Hostinger (rsync over SSH)
+        run: |
+          rsync -az --delete \
+            -e "ssh -p ${HOSTINGER_PORT}" \
+            hostinger-deploy/api/ \
+            "${HOSTINGER_USER}@${HOSTINGER_HOST}:${HOSTINGER_TARGET}/api/"
+
+      - name: Deploy .htaccess to Hostinger (scp over SSH)
+        run: |
+          scp -P "${HOSTINGER_PORT}" \
+            hostinger-deploy/.htaccess \
+            "${HOSTINGER_USER}@${HOSTINGER_HOST}:${HOSTINGER_TARGET}/.htaccess"
 
