@@ -22,16 +22,16 @@ export const setToken = (token) => {
 export const getToken = () => localStorage.getItem(STORAGE_TOKEN);
 
 export const api = {
+  // Public
   login: (username, password) =>
     http.post("/auth/login.php", { username, password }).then((r) => r.data),
+  signup: (payload) =>
+    http.post("/signup.php", payload).then((r) => r.data),
   products: () => http.get("/products.php").then((r) => r.data),
   product: (id) =>
     http.get("/products.php", { params: { id } }).then((r) => r.data),
-
   // Protected
-  users: () => http.get("/users.php").then((r) => r.data),
-  createUser: (payload) =>
-    http.post("/users.php", payload).then((r) => r.data),
+  profile: () => http.get("/profile.php").then((r) => r.data),
   orders: (userId) =>
     http
       .get("/orders.php", userId ? { params: { user_id: userId } } : undefined)

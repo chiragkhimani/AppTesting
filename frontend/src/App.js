@@ -1,14 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "@/App.css";
+import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderConfirmation from "./pages/OrderConfirmation";
-import UserManagement from "./pages/UserManagement";
+import Orders from "./pages/Orders";
 
 const RequireAuth = ({ children }) => {
   const { user, ready } = useAuth();
@@ -25,15 +27,17 @@ function App() {
           <CartProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
               <Route path="/products" element={<RequireAuth><Products /></RequireAuth>} />
               <Route path="/products/:id" element={<RequireAuth><ProductDetails /></RequireAuth>} />
               <Route path="/cart" element={<RequireAuth><Cart /></RequireAuth>} />
               <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
               <Route path="/order-confirmation/:id" element={<RequireAuth><OrderConfirmation /></RequireAuth>} />
-              <Route path="/users" element={<RequireAuth><UserManagement /></RequireAuth>} />
+              <Route path="/orders" element={<RequireAuth><Orders /></RequireAuth>} />
               <Route path="/" element={<Navigate to="/products" replace />} />
               <Route path="*" element={<Navigate to="/products" replace />} />
             </Routes>
+            <Toaster position="top-right" richColors />
           </CartProvider>
         </AuthProvider>
       </BrowserRouter>

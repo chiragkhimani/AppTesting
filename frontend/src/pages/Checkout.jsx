@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "../api/client";
-import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import Header from "../components/Header";
 
-const Field = ({ id, label, value, onChange, testId, type = "text", placeholder }) => (
+const Field = ({ id, label, value, onChange, testId, type = "text", placeholder, autoComplete }) => (
   <div className="space-y-1.5">
     <label htmlFor={id} className="text-sm font-medium text-zinc-700">
       {label}
@@ -18,25 +18,23 @@ const Field = ({ id, label, value, onChange, testId, type = "text", placeholder 
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      autoComplete={autoComplete}
       className="block h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
     />
   </div>
 );
 
 const Checkout = () => {
-  useAuth(); // ensures protected
   const { items, total, clear } = useCart();
   const navigate = useNavigate();
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
-  const [zipcode, setZipcode] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExp, setCardExp] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
+  const [state, setState] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [phone, setPhone] = useState("");
+
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -46,22 +44,19 @@ const Checkout = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (
-      !firstName || !lastName || !address || !city || !zipcode ||
-      !cardName || !cardNumber || !cardExp || !cardCvv
-    ) {
+    if (!fullName || !address || !city || !state || !pincode || !phone) {
       setError("Please fill in all fields");
       return;
     }
     setSubmitting(true);
     try {
-      // Server recomputes total from DB prices. We only send product_id + quantity.
       const order = {
-        first_name: firstName,
-        last_name: lastName,
+        full_name: fullName,
         address,
         city,
-        zipcode,
+        state,
+        pincode,
+        phone,
         items: items.map((i) => ({
           product_id: i.product_id,
           quantity: i.quantity,
@@ -70,12 +65,18 @@ const Checkout = () => {
       const data = await api.createOrder(order);
       setSubmitted(true);
       clear();
+      toast.success("Order placed!", {
+        description: `Order #${data.order_id} • $${data.total.toFixed(2)}`,
+      });
       navigate(`/order-confirmation/${data.order_id}`, {
         replace: true,
         state: { order_id: data.order_id, total: data.total },
       });
     } catch (err) {
-      setError(err?.response?.data?.detail || "Order failed. Try again.");
+      const detail =
+        err?.response?.data?.detail || "Order failed. Try again.";
+      setError(detail);
+      toast.error(detail);
     } finally {
       setSubmitting(false);
     }
@@ -91,46 +92,33 @@ const Checkout = () => {
         >
           Checkout
         </h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Where should we deliver your order?
+        </p>
 
         <form
           onSubmit={onSubmit}
           data-testid="checkout-form"
           className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3"
         >
-          <div className="col-span-2 space-y-6">
-            <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
-                Shipping
-              </h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field id="firstName" label="First name" value={firstName} onChange={setFirstName} testId="checkout-first-name" placeholder="John" />
-                <Field id="lastName" label="Last name" value={lastName} onChange={setLastName} testId="checkout-last-name" placeholder="Doe" />
-                <div className="sm:col-span-2">
-                  <Field id="address" label="Address" value={address} onChange={setAddress} testId="checkout-address" placeholder="123 Main St" />
-                </div>
-                <Field id="city" label="City" value={city} onChange={setCity} testId="checkout-city" placeholder="San Francisco" />
-                <Field id="zipcode" label="Zip / Postal code" value={zipcode} onChange={setZipcode} testId="checkout-zipcode" placeholder="94103" />
-              </div>
-            </section>
-
-            <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
-                Payment (mock)
+          <section className="col-span-2 space-y-6">
+            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-500">
+                <MapPin className="h-4 w-4" /> Shipping details
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <Field id="cardName" label="Name on card" value={cardName} onChange={setCardName} testId="checkout-card-name" placeholder="John Doe" />
+                  <Field id="full-name" label="Full name" value={fullName} onChange={setFullName} testId="checkout-name" autoComplete="name" />
                 </div>
                 <div className="sm:col-span-2">
-                  <Field id="cardNumber" label="Card number" value={cardNumber} onChange={setCardNumber} testId="checkout-card-number" placeholder="4242 4242 4242 4242" />
+                  <Field id="address" label="Address" value={address} onChange={setAddress} testId="checkout-address" autoComplete="street-address" />
                 </div>
-                <Field id="cardExp" label="Expiration (MM/YY)" value={cardExp} onChange={setCardExp} testId="checkout-card-exp" placeholder="04/27" />
-                <Field id="cardCvv" label="CVV" value={cardCvv} onChange={setCardCvv} testId="checkout-card-cvv" placeholder="123" />
+                <Field id="city" label="City" value={city} onChange={setCity} testId="checkout-city" autoComplete="address-level2" />
+                <Field id="state" label="State" value={state} onChange={setState} testId="checkout-state" autoComplete="address-level1" />
+                <Field id="pincode" label="Pincode" value={pincode} onChange={setPincode} testId="checkout-pincode" autoComplete="postal-code" />
+                <Field id="phone" label="Phone number" value={phone} onChange={setPhone} testId="checkout-phone" type="tel" autoComplete="tel" placeholder="+1 555 0100" />
               </div>
-              <p className="mt-3 text-xs text-zinc-500">
-                This is a demo. No real payment will be processed.
-              </p>
-            </section>
+            </div>
 
             {error && (
               <div
@@ -140,7 +128,7 @@ const Checkout = () => {
                 {error}
               </div>
             )}
-          </div>
+          </section>
 
           <aside
             data-testid="checkout-summary"
@@ -172,7 +160,7 @@ const Checkout = () => {
             </div>
             <button
               type="submit"
-              data-testid="place-order-button"
+              data-testid="checkout-button"
               disabled={submitting}
               className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-60"
             >
