@@ -1,5 +1,4 @@
 import { Link, useLocation, useParams } from "react-router-dom";
-import { CheckCircle2 } from "lucide-react";
 import Header from "../components/Header";
 
 const OrderConfirmation = () => {
@@ -16,18 +15,11 @@ const OrderConfirmation = () => {
           className="relative flex flex-col items-center gap-5 overflow-hidden rounded-3xl border border-emerald-100 bg-white p-10 text-center shadow-xl shadow-emerald-100/30"
         >
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400" />
-          <div className="relative">
-            <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-emerald-200 opacity-75" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-300">
-              <CheckCircle2 className="h-12 w-12" strokeWidth={2.4} />
-            </div>
-          </div>
 
           <h1
             data-testid="order-success-message"
             className="flex items-center gap-2 text-3xl font-semibold tracking-tight text-zinc-900"
           >
-            <span aria-hidden>✅</span>
             <span>Your order has been placed</span>
           </h1>
           <p
@@ -72,13 +64,6 @@ const OrderConfirmation = () => {
               className="inline-flex h-11 items-center rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.99]"
             >
               Continue shopping
-            </Link>
-            <Link
-              to="/users"
-              data-testid="view-users-link"
-              className="inline-flex h-11 items-center rounded-md border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-            >
-              View users & orders
             </Link>
           </div>
         </div>
