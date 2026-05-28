@@ -6,22 +6,18 @@ $me = require_user(); // protected
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (isset($_GET['user_id'])) {
         $uid = (int)$_GET['user_id'];
-        $stmt = db()->prepare(
-            'SELECT id, user_id, first_name, last_name, address, city, zipcode, total, created_at
-             FROM orders WHERE user_id = :uid ORDER BY id DESC'
-        );
-        $stmt->execute([':uid' => $uid]);
     } else {
-        $stmt = db()->query(
-            'SELECT id, user_id, first_name, last_name, address, city, zipcode, total, created_at
-             FROM orders ORDER BY id DESC'
-        );
+        $uid = (int)$me['id']; // default: current user's own orders
     }
+    $stmt = db()->prepare(
+        'SELECT id, user_id, full_name, address, city, state, pincode, phone, total, created_at
+         FROM orders WHERE user_id = :uid ORDER BY id DESC'
+    );
+    $stmt->execute([':uid' => $uid]);
     $orders = $stmt->fetchAll();
 
     if (!$orders) send_json(['orders' => []]);
 
-    // Load all items in a single query
     $ids = array_map(fn($o) => (int)$o['id'], $orders);
     $place = implode(',', array_fill(0, count($ids), '?'));
     $itemStmt = db()->prepare(
@@ -43,11 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         return [
             'id'         => (int)$o['id'],
             'user_id'    => $o['user_id'] !== null ? (int)$o['user_id'] : null,
-            'first_name' => $o['first_name'],
-            'last_name'  => $o['last_name'],
+            'full_name'  => $o['full_name'],
             'address'    => $o['address'],
             'city'       => $o['city'],
-            'zipcode'    => $o['zipcode'],
+            'state'      => $o['state'],
+            'pincode'    => $o['pincode'],
+            'phone'      => $o['phone'],
             'total'      => (float)$o['total'],
             'created_at' => $o['created_at'],
             'items'      => $itemsByOrder[(int)$o['id']] ?? [],
@@ -58,21 +55,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = read_json_body();
-    $first_name = trim($body['first_name'] ?? '');
-    $last_name  = trim($body['last_name']  ?? '');
-    $address    = trim($body['address']    ?? '');
-    $city       = trim($body['city']       ?? '');
-    $zipcode    = trim($body['zipcode']    ?? '');
-    $items      = $body['items'] ?? [];
+    $full_name = trim($body['full_name'] ?? '');
+    $address   = trim($body['address']   ?? '');
+    $city      = trim($body['city']      ?? '');
+    $state     = trim($body['state']     ?? '');
+    $pincode   = trim($body['pincode']   ?? '');
+    $phone     = trim($body['phone']     ?? '');
+    $items     = $body['items'] ?? [];
 
-    if ($first_name === '' || $last_name === '' || $address === '' || $city === '' || $zipcode === '') {
-        send_error('Shipping fields are required', 400);
+    if ($full_name === '' || $address === '' || $city === '' || $state === '' || $pincode === '' || $phone === '') {
+        send_error('All shipping fields are required', 400);
+    }
+    if (!preg_match('/^[+\d][\d\s\-()]{5,19}$/', $phone)) {
+        send_error('Invalid phone number', 400);
     }
     if (!is_array($items) || count($items) === 0) {
         send_error('Cart is empty', 400);
     }
 
-    // === SERVER-SIDE TOTAL: always recompute from DB prices. ===
     $pdo = db();
     $priceStmt = $pdo->prepare('SELECT id, name, price FROM products WHERE id = :id LIMIT 1');
 
@@ -101,16 +101,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdo->beginTransaction();
     try {
         $oStmt = $pdo->prepare(
-            'INSERT INTO orders (user_id, first_name, last_name, address, city, zipcode, total, created_at)
-             VALUES (:uid, :fn, :ln, :a, :c, :z, :t, NOW())'
+            'INSERT INTO orders (user_id, full_name, address, city, state, pincode, phone, total, created_at)
+             VALUES (:uid, :fn, :a, :c, :s, :pc, :ph, :t, NOW())'
         );
         $oStmt->execute([
             ':uid' => $me['id'],
-            ':fn'  => $first_name,
-            ':ln'  => $last_name,
+            ':fn'  => $full_name,
             ':a'   => $address,
             ':c'   => $city,
-            ':z'   => $zipcode,
+            ':s'   => $state,
+            ':pc'  => $pincode,
+            ':ph'  => $phone,
             ':t'   => $total,
         ]);
         $orderId = (int)$pdo->lastInsertId();

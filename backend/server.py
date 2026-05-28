@@ -1,14 +1,14 @@
 """
 FastAPI mirror of the PHP/MySQL backend for the Emergent preview environment.
 
-Mirrors the production PHP routes EXACTLY (same paths, same JSON shapes):
+v3 routes:
   Public:
     GET  /api/products.php
     GET  /api/products.php?id={id}
     POST /api/auth/login.php
+    POST /api/signup.php
   Protected (Authorization: Bearer <token>):
-    GET  /api/users.php
-    POST /api/users.php
+    GET  /api/profile.php
     GET  /api/orders.php
     GET  /api/orders.php?user_id={id}
     POST /api/orders.php
@@ -20,14 +20,12 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import secrets
+import re
 import bcrypt
 from pathlib import Path
 from pydantic import BaseModel, Field, field_validator
-import re
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
-
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -37,6 +35,8 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 TOKEN_TTL_HOURS = 24
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PHONE_RE = re.compile(r"^[+\d][\d\s\-()]{5,19}$")
 
 app = FastAPI(title="QA Demo Store API (FastAPI mirror)")
 api_router = APIRouter(prefix="/api")
@@ -59,7 +59,6 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def new_token() -> str:
-    # 64 hex chars, opaque, cryptographically random
     return secrets.token_hex(32)
 
 
@@ -105,10 +104,10 @@ async def _next_id(collection: str) -> int:
 
 @app.on_event("startup")
 async def seed_database():
-    # If users exist but lack the new schema (email/password_hash), reset.
+    # Reset users if schema is older than v2 (lacks email/password_hash)
     sample = await db.users.find_one({})
     if sample and ("email" not in sample or "password_hash" not in sample):
-        logger.info("Migrating users to v2 schema – dropping old users + tokens")
+        logger.info("Migrating users to v3 schema – dropping legacy users + tokens")
         await db.users.drop()
         await db.auth_tokens.drop()
         sample = None
@@ -134,8 +133,15 @@ async def seed_database():
         await db.products.insert_many([dict(p) for p in SEED_PRODUCTS])
         logger.info("Seeded products")
 
+    # Reset orders if schema lacks v3 fields (full_name/phone)
+    sample_order = await db.orders.find_one({})
+    if sample_order and ("full_name" not in sample_order or "phone" not in sample_order):
+        logger.info("Dropping legacy orders (v3 schema change)")
+        await db.orders.drop()
+
     await db.auth_tokens.create_index("token", unique=True)
     await db.users.create_index("username", unique=True)
+    await db.users.create_index("email", unique=True)
 
 
 # ---------- Pydantic models ----------
@@ -144,16 +150,22 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class CreateUserRequest(BaseModel):
+class SignupRequest(BaseModel):
     username: str = Field(min_length=3, max_length=60)
     email: str
-    password: str = Field(min_length=4)
-    first_name: Optional[str] = ""
-    last_name: Optional[str] = ""
+    password: str = Field(min_length=6)
+
+    @field_validator("username")
+    @classmethod
+    def _u(cls, v: str) -> str:
+        v = v.strip()
+        if not re.match(r"^[A-Za-z0-9_.-]+$", v):
+            raise ValueError("Username may only contain letters, numbers, '.', '_' or '-'")
+        return v
 
     @field_validator("email")
     @classmethod
-    def _check_email(cls, v: str) -> str:
+    def _e(cls, v: str) -> str:
         v = v.strip().lower()
         if not EMAIL_RE.match(v):
             raise ValueError("Invalid email address")
@@ -166,12 +178,21 @@ class OrderItemIn(BaseModel):
 
 
 class OrderRequest(BaseModel):
-    first_name: str
-    last_name: str
-    address: str
-    city: str
-    zipcode: str
+    full_name: str = Field(min_length=2, max_length=120)
+    address: str = Field(min_length=2, max_length=255)
+    city: str = Field(min_length=1, max_length=80)
+    state: str = Field(min_length=1, max_length=80)
+    pincode: str = Field(min_length=3, max_length=20)
+    phone: str
     items: List[OrderItemIn]
+
+    @field_validator("phone")
+    @classmethod
+    def _p(cls, v: str) -> str:
+        v = v.strip()
+        if not PHONE_RE.match(v):
+            raise ValueError("Invalid phone number")
+        return v
 
 
 # ---------- Helpers ----------
@@ -208,7 +229,7 @@ async def current_user(authorization: Optional[str] = Header(None)) -> dict:
 # ---------- Public routes ----------
 @api_router.get("/")
 async def root():
-    return {"message": "QA Demo Store API – mirror of PHP backend"}
+    return {"message": "QA Demo Store API v3 – mirror of PHP backend"}
 
 
 @api_router.get("/products.php")
@@ -246,20 +267,12 @@ async def auth_login(payload: LoginRequest):
     }
 
 
-# ---------- Protected routes ----------
-@api_router.get("/users.php")
-async def list_users(_: dict = Depends(current_user)):
-    rows = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
-    rows.sort(key=lambda x: x["id"])
-    return {"users": rows}
-
-
-@api_router.post("/users.php", status_code=201)
-async def create_user(payload: CreateUserRequest, _: dict = Depends(current_user)):
+@api_router.post("/signup.php", status_code=201)
+async def signup(payload: SignupRequest):
     if await db.users.find_one({"username": payload.username}):
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="Username is already taken")
     if await db.users.find_one({"email": payload.email}):
-        raise HTTPException(status_code=400, detail="Email already exists")
+        raise HTTPException(status_code=400, detail="Email is already registered")
 
     new_id = await _next_id("users")
     doc = {
@@ -267,18 +280,24 @@ async def create_user(payload: CreateUserRequest, _: dict = Depends(current_user
         "username": payload.username,
         "email": payload.email,
         "password_hash": hash_password(payload.password),
-        "first_name": payload.first_name or payload.username,
-        "last_name": payload.last_name or "",
+        "first_name": payload.username,
+        "last_name": "",
         "locked": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(doc)
-    return {"user": _user_public(doc)}
+    return {"success": True, "message": "Account created successfully", "user": _user_public(doc)}
+
+
+# ---------- Protected routes ----------
+@api_router.get("/profile.php")
+async def profile(me: dict = Depends(current_user)):
+    return {"user": _user_public(me)}
 
 
 @api_router.get("/orders.php")
-async def list_orders(user_id: Optional[int] = None, _: dict = Depends(current_user)):
-    query = {"user_id": user_id} if user_id is not None else {}
+async def list_orders(user_id: Optional[int] = None, me: dict = Depends(current_user)):
+    query = {"user_id": user_id} if user_id is not None else {"user_id": me["id"]}
     rows = await db.orders.find(query, {"_id": 0}).to_list(1000)
     rows.sort(key=lambda x: x["id"], reverse=True)
     return {"orders": rows}
@@ -289,7 +308,7 @@ async def create_order(order: OrderRequest, user: dict = Depends(current_user)):
     if not order.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
-    # SERVER-SIDE total: look up every product's price in DB.
+    # SERVER-SIDE total recompute from DB prices
     server_items = []
     total = 0.0
     for item in order.items:
@@ -310,11 +329,12 @@ async def create_order(order: OrderRequest, user: dict = Depends(current_user)):
     doc = {
         "id": new_id,
         "user_id": user["id"],
-        "first_name": order.first_name,
-        "last_name": order.last_name,
+        "full_name": order.full_name,
         "address": order.address,
         "city": order.city,
-        "zipcode": order.zipcode,
+        "state": order.state,
+        "pincode": order.pincode,
+        "phone": order.phone,
         "total": total,
         "items": server_items,
         "created_at": datetime.now(timezone.utc).isoformat(),

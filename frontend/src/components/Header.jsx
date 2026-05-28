@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, LogOut, Package, Users } from "lucide-react";
+import { ShoppingCart, LogOut, Package, Receipt } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 
@@ -12,6 +13,7 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
+    toast.success("Signed out");
     navigate("/login", { replace: true });
   };
 
@@ -32,19 +34,26 @@ const Header = () => {
 
         <nav className="flex items-center gap-2 sm:gap-3">
           <Link
-            to="/users"
-            data-testid="users-link"
-            className="hidden h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 sm:inline-flex"
+            to="/products"
+            data-testid="nav-products"
+            className="hidden h-9 items-center rounded-md px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 sm:inline-flex"
           >
-            <Users className="h-4 w-4" />
-            Users
+            Products
+          </Link>
+          <Link
+            to="/orders"
+            data-testid="orders-link"
+            className="hidden h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 sm:inline-flex"
+          >
+            <Receipt className="h-4 w-4" />
+            Orders
           </Link>
 
           <span
             data-testid="user-greeting"
             className="hidden text-sm text-zinc-600 md:block"
           >
-            Hi, <span className="font-medium text-zinc-900">{user.first_name}</span>
+            Hi, <span className="font-medium text-zinc-900">{user.first_name || user.username}</span>
           </span>
 
           <Link

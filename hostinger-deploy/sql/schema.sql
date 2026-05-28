@@ -1,4 +1,4 @@
--- QA Demo Store – v2 schema (auth tokens + bcrypt passwords + email)
+-- QA Demo Store – v3 schema
 -- Run this once on your Hostinger MySQL database (phpMyAdmin → SQL tab).
 
 SET NAMES utf8mb4;
@@ -15,7 +15,7 @@ CREATE TABLE users (
     username      VARCHAR(60)  NOT NULL,
     email         VARCHAR(160) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    first_name    VARCHAR(80)  NOT NULL,
+    first_name    VARCHAR(80)  NOT NULL DEFAULT '',
     last_name     VARCHAR(80)  NOT NULL DEFAULT '',
     locked        TINYINT(1)   NOT NULL DEFAULT 0,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,11 +38,12 @@ CREATE TABLE products (
 CREATE TABLE orders (
     id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id     INT UNSIGNED NULL,
-    first_name  VARCHAR(80)  NOT NULL,
-    last_name   VARCHAR(80)  NOT NULL,
+    full_name   VARCHAR(120) NOT NULL,
     address     VARCHAR(255) NOT NULL,
-    city        VARCHAR(120) NOT NULL,
-    zipcode     VARCHAR(20)  NOT NULL,
+    city        VARCHAR(80)  NOT NULL,
+    state       VARCHAR(80)  NOT NULL,
+    pincode     VARCHAR(20)  NOT NULL,
+    phone       VARCHAR(30)  NOT NULL,
     total       DECIMAL(10,2) NOT NULL,
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
