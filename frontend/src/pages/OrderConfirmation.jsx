@@ -13,24 +13,32 @@ const OrderConfirmation = () => {
       <main className="mx-auto max-w-2xl px-4 py-12">
         <div
           data-testid="order-confirmation"
-          className="flex flex-col items-center gap-4 rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm"
+          className="relative flex flex-col items-center gap-5 overflow-hidden rounded-3xl border border-emerald-100 bg-white p-10 text-center shadow-xl shadow-emerald-100/30"
         >
-          <CheckCircle2 className="h-14 w-14 text-emerald-600" />
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400" />
+          <div className="relative">
+            <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-emerald-200 opacity-75" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-300">
+              <CheckCircle2 className="h-12 w-12" strokeWidth={2.4} />
+            </div>
+          </div>
+
           <h1
-            data-testid="confirmation-title"
-            className="text-3xl font-semibold tracking-tight text-zinc-900"
+            data-testid="order-success-message"
+            className="flex items-center gap-2 text-3xl font-semibold tracking-tight text-zinc-900"
           >
-            Thank you for your order!
+            <span aria-hidden>✅</span>
+            <span>Your order has been placed</span>
           </h1>
           <p
             data-testid="confirmation-message"
             className="max-w-md text-sm text-zinc-600"
           >
-            Your order has been placed successfully. A confirmation has been
+            Thanks for shopping the QA Demo Store! A confirmation has been
             queued and your items will be on their way shortly.
           </p>
 
-          <div className="mt-4 grid w-full grid-cols-2 gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-left">
+          <div className="mt-2 grid w-full grid-cols-2 gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-left">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 Order number
@@ -57,13 +65,22 @@ const OrderConfirmation = () => {
             )}
           </div>
 
-          <Link
-            to="/products"
-            data-testid="back-home-button"
-            className="mt-4 inline-flex h-11 items-center rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700"
-          >
-            Continue shopping
-          </Link>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/products"
+              data-testid="back-home-button"
+              className="inline-flex h-11 items-center rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.99]"
+            >
+              Continue shopping
+            </Link>
+            <Link
+              to="/users"
+              data-testid="view-users-link"
+              className="inline-flex h-11 items-center rounded-md border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              View users & orders
+            </Link>
+          </div>
         </div>
       </main>
     </div>

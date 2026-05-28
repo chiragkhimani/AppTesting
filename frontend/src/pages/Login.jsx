@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Package } from "lucide-react";
+import { Package, Loader2 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
@@ -24,7 +24,7 @@ const Login = () => {
     setLoading(true);
     try {
       const data = await api.login(username, password);
-      login(data.user);
+      login(data.token, data.user);
       navigate("/products", { replace: true });
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.response?.data?.error;
@@ -38,15 +38,13 @@ const Login = () => {
     <div className="min-h-screen bg-zinc-50">
       <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
         <div className="mb-8 flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-200">
             <Package className="h-6 w-6" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
             QA Demo Store
           </h1>
-          <p className="text-sm text-zinc-500">
-            Sign in to start automating
-          </p>
+          <p className="text-sm text-zinc-500">Sign in to start automating</p>
         </div>
 
         <form
@@ -55,10 +53,7 @@ const Login = () => {
           className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
         >
           <div className="space-y-1.5">
-            <label
-              htmlFor="username"
-              className="text-sm font-medium text-zinc-700"
-            >
+            <label htmlFor="username" className="text-sm font-medium text-zinc-700">
               Username
             </label>
             <input
@@ -69,15 +64,12 @@ const Login = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="standard_user"
-              className="block h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="block h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label
-              htmlFor="password"
-              className="text-sm font-medium text-zinc-700"
-            >
+            <label htmlFor="password" className="text-sm font-medium text-zinc-700">
               Password
             </label>
             <input
@@ -88,7 +80,7 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="secret_sauce"
-              className="block h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="block h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
           </div>
 
@@ -106,8 +98,9 @@ const Login = () => {
             type="submit"
             data-testid="login-button"
             disabled={loading}
-            className="inline-flex h-11 w-full items-center justify-center rounded-md bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? "Signing in..." : "Login"}
           </button>
         </form>

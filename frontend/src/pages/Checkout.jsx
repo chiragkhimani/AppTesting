@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -17,13 +18,13 @@ const Field = ({ id, label, value, onChange, testId, type = "text", placeholder 
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="block h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+      className="block h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
     />
   </div>
 );
 
 const Checkout = () => {
-  const { user } = useAuth();
+  useAuth(); // ensures protected
   const { items, total, clear } = useCart();
   const navigate = useNavigate();
 
@@ -53,18 +54,15 @@ const Checkout = () => {
     }
     setSubmitting(true);
     try {
+      // Server recomputes total from DB prices. We only send product_id + quantity.
       const order = {
-        user_id: user?.id,
         first_name: firstName,
         last_name: lastName,
         address,
         city,
         zipcode,
-        total: Number(total.toFixed(2)),
         items: items.map((i) => ({
           product_id: i.product_id,
-          name: i.name,
-          price: i.price,
           quantity: i.quantity,
         })),
       };
@@ -98,7 +96,7 @@ const Checkout = () => {
           className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3"
         >
           <div className="col-span-2 space-y-6">
-            <section className="rounded-xl border border-zinc-200 bg-white p-5">
+            <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
                 Shipping
               </h2>
@@ -113,7 +111,7 @@ const Checkout = () => {
               </div>
             </section>
 
-            <section className="rounded-xl border border-zinc-200 bg-white p-5">
+            <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
                 Payment (mock)
               </h2>
@@ -144,7 +142,7 @@ const Checkout = () => {
 
           <aside
             data-testid="checkout-summary"
-            className="col-span-1 h-fit rounded-xl border border-zinc-200 bg-white p-5"
+            className="col-span-1 h-fit rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
           >
             <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
               Order summary
@@ -174,8 +172,9 @@ const Checkout = () => {
               type="submit"
               data-testid="place-order-button"
               disabled={submitting}
-              className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-md bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-60"
             >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitting ? "Placing order…" : "Place order"}
             </button>
           </aside>

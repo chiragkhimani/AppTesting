@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, LogOut, Package } from "lucide-react";
+import { ShoppingCart, LogOut, Package, Users } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 
@@ -18,9 +18,9 @@ const Header = () => {
   return (
     <header
       data-testid="app-header"
-      className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white"
+      className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white/80 backdrop-blur"
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
         <Link
           to="/products"
           data-testid="app-logo"
@@ -30,10 +30,19 @@ const Header = () => {
           <span>QA Demo Store</span>
         </Link>
 
-        <nav className="flex items-center gap-3">
+        <nav className="flex items-center gap-2 sm:gap-3">
+          <Link
+            to="/users"
+            data-testid="users-link"
+            className="hidden h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 sm:inline-flex"
+          >
+            <Users className="h-4 w-4" />
+            Users
+          </Link>
+
           <span
             data-testid="user-greeting"
-            className="hidden text-sm text-zinc-600 sm:block"
+            className="hidden text-sm text-zinc-600 md:block"
           >
             Hi, <span className="font-medium text-zinc-900">{user.first_name}</span>
           </span>
@@ -41,14 +50,14 @@ const Header = () => {
           <Link
             to="/cart"
             data-testid="cart-link"
-            className="relative inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+            className="relative inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50"
           >
             <ShoppingCart className="h-4 w-4" />
-            Cart
+            <span className="hidden sm:inline">Cart</span>
             {count > 0 && (
               <span
                 data-testid="cart-badge"
-                className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-semibold text-white"
+                className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-semibold text-white"
               >
                 {count}
               </span>
@@ -58,10 +67,10 @@ const Header = () => {
           <button
             onClick={handleLogout}
             data-testid="logout-button"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </nav>
       </div>
