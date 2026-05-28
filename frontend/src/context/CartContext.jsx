@@ -3,18 +3,23 @@ import { createContext, useContext, useEffect, useState } from "react";
 const CartContext = createContext(null);
 const STORAGE_KEY = "qa_demo_cart";
 
+const readInitial = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    return [];
+  }
+};
+
 export const CartProvider = ({ children }) => {
-  const [items, setItems] = useState([]);
+  // Initialize synchronously from localStorage so save-effect never wipes storage
+  const [items, setItems] = useState(readInitial);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setItems(JSON.parse(raw));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     } catch (_) {}
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
   const add = (product) => {

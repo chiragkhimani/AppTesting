@@ -1,89 +1,58 @@
 # QA Demo Store – Product Requirements Document
 
 ## Problem statement
-Build a simple saucedemo.com-style e-commerce demo for QA / Selenium / Playwright
-automation practice. Target deployment is **Hostinger shared hosting** with a
-**PHP + MySQL** backend and a **React** static frontend.
+A saucedemo.com-style e-commerce demo for QA / Selenium / Playwright practice,
+deployable to **Hostinger shared hosting** (PHP + MySQL backend, React static
+frontend). A FastAPI + MongoDB mirror is kept in `/app/backend/server.py` for
+local preview only; both backends expose an identical JSON contract.
 
 ## Architecture
-
 ```
-┌──────────────────────────┐         ┌──────────────────────────┐
-│  React build (static)    │  HTTPS  │  PHP REST API            │
-│  public_html/index.html  │ ──────▶ │  public_html/api/*.php   │
-└──────────────────────────┘         └────────────┬─────────────┘
-                                                  │
-                                                  ▼
-                                            MySQL (Hostinger)
+React build (static) ──HTTP──▶ PHP REST API (api/*.php) ──▶ MySQL
+                                       │ Bearer-token auth
+                                       ▼
+                                  auth_tokens table
 ```
+For preview: FastAPI mirror at `/app/backend/server.py` (MongoDB).
 
-For local preview inside the Emergent sandbox (PHP not runnable), a
-**FastAPI mirror** at `/app/backend/server.py` exposes the EXACT same paths
-(`/api/login.php`, `/api/users.php`, `/api/products.php[?id=N]`, `/api/orders.php`)
-and the same JSON contract, backed by MongoDB. The React frontend points to
-either backend via `REACT_APP_API_BASE`.
+## Implemented (timeline)
 
-## Deliverables (status)
+### 2026-02-28 – MVP (v1)
+- Login + product list + product details + cart + checkout + order confirmation
+- localStorage auth (no token) + cart
+- 3 demo users (plaintext) + 6 products
+- PHP/MySQL deliverables for Hostinger + `.htaccess` + DEPLOYMENT.md
+- Testing agent: 100% backend (10/10), 100% frontend.
 
-| Item                                                            | Status        |
-|-----------------------------------------------------------------|---------------|
-| React frontend (Login, Products, Details, Cart, Checkout, Conf.)| ✅ 2026-02-28 |
-| FastAPI mirror for preview (MongoDB)                            | ✅ 2026-02-28 |
-| PHP backend (`api/db.php`, `login`, `users`, `products`, `orders`)| ✅ 2026-02-28 |
-| MySQL schema + seed (3 users, 6 products)                       | ✅ 2026-02-28 |
-| `.htaccess` for React Router + caching                          | ✅ 2026-02-28 |
-| Step-by-step Hostinger deployment guide                         | ✅ 2026-02-28 |
-| Stable `data-testid` selectors on every interactive element     | ✅ 2026-02-28 |
-| Testing agent verification (backend 100%, frontend 100%)        | ✅ 2026-02-28 |
+### 2026-02-28 – v2 (current)
+- **Bearer-token auth**: `POST /api/auth/login.php` issues a 64-hex token (24h TTL); axios interceptor injects `Authorization: Bearer <token>`.
+- **bcrypt** password storage everywhere (PHP `password_hash`, Python `bcrypt`).
+- **MySQL schema**: `users` gains `email`, `password_hash`, `created_at`; new `auth_tokens` table. Migration v2 script preserves existing data.
+- **Protected APIs**: GET/POST `/api/users.php`, GET/POST `/api/orders.php` (incl. `?user_id=N` filter). Products remain public.
+- **Server-side total recomputation** in `POST /api/orders.php` — client `total`/`price` ignored; verified by tests (bogus price=999999 → final total still $69.97).
+- **Order success page** redesigned with prominent checkmark and `✅ Your order has been placed` message (`data-testid="order-success-message"`).
+- **User Management page** (`/users`): create users (`username` + `email` + `password` + optional names) and expand any user row to view their order history (items, totals, dates).
+- **UI polish**: hover lift + emerald glow on product cards, animated button transitions, loading skeletons for products grid, subtle backdrop-blur header, gradient accent stripe on the order-success card.
+- Testing agent v2: 17/17 backend, 100% frontend after fixing two regressions (checkout redirect order, cart persistence on hard reload).
 
-## User personas
-- **QA learner** – practising Selenium/Playwright against stable selectors.
-- **Demo viewer** – wants a quick visual to evaluate the site.
-
-## Core requirements (static)
-1. Frontend pages: Login, Product listing, Product details, Cart, Checkout,
-   Order confirmation.
-2. Login validates against backend; session in `localStorage`; logout supported.
-3. Products fetched from backend; `id, name, description, price, image_url,
-   category, stock`.
-4. Cart add/remove/quantity, total price displayed, `localStorage` persistence.
-5. Backend exposes `POST /api/login.php`, `GET /api/users.php`,
-   `GET /api/products.php`, `GET /api/products.php?id=N`, `POST /api/orders.php`.
-6. MySQL tables: `users`, `products`, `orders`, `order_items` with seed data.
-7. DB credentials live only in `api/db.php`. Prepared statements. JSON responses.
-8. Stable selectors: `login-username`, `login-password`, `login-button`,
-   `product-card-{id}`, `add-to-cart-{id}`, `cart-link`, `checkout-button`, …
-
-## What's implemented (2026-02-28)
-- Full React app with `BrowserRouter`, AuthContext + CartContext, protected
-  routes, clean & minimal saucedemo-like aesthetic.
-- PHP API files using PDO + prepared statements, transactional order creation.
-- MySQL `schema.sql` + `seed.sql` (3 users, 6 products).
-- `.htaccess` that preserves `/api/*.php` and rewrites everything else to
-  `index.html` for React Router.
-- Complete deployment guide (`hostinger-deploy/DEPLOYMENT.md`) covering DB
-  creation, build (`REACT_APP_API_BASE=/api yarn build`), upload layout, and
-  smoke-tests.
-- 10/10 backend tests (pytest), 100% frontend e2e via testing agent.
-
-## Prioritised backlog
+## Backlog
 **P1**
-- Replace plaintext passwords with `password_hash`/`password_verify` (current
-  setup is intentionally plaintext so QA learners can see the seed).
-- Server-side total recomputation in `orders.php` (currently trusts client).
+- Add password reset and "change my password" UI.
+- Per-user role flag (`is_admin`) — restrict POST `/api/users.php` to admins.
+- `problem_user` quirks (shuffled product names, broken image) like real saucedemo.
+- Rate-limit `/api/auth/login.php` (currently no brute-force protection).
 
 **P2**
-- `problem_user` quirks (e.g. broken image, swapped names) to mimic saucedemo's
-  intentional bugs for negative-test practice.
-- Server-side sort/filter endpoints.
-- Order history page (`/orders`) backed by `GET /api/orders.php?user_id=N`.
+- "Order history for me" UI on `/orders` (separate from User Management).
+- TTL-based cleanup job for expired `auth_tokens` rows.
+- Email verification flow.
 
 **P3**
 - CI workflow that builds React + lints PHP.
-- Demo "reset DB" admin endpoint.
+- "Reset demo data" admin endpoint.
 
 ## Next tasks
-- Wait for Hostinger DB credentials from the user, then they:
-  1. Run `sql/schema.sql` + `sql/seed.sql` in phpMyAdmin.
-  2. Edit `api/db.php` constants.
-  3. `REACT_APP_API_BASE=/api yarn build` and upload.
+- Wait for the user to deploy v2 to Hostinger:
+  1. Run `sql/schema.sql` + `sql/seed.sql` (fresh) OR `sql/migration_v2.sql` (upgrade) in phpMyAdmin.
+  2. Confirm `api/db.php` credentials.
+  3. `REACT_APP_API_BASE=/api yarn build` and upload `frontend/build/*`, `.htaccess`, `api/*` (including new `api/auth/login.php`) to `public_html/`.

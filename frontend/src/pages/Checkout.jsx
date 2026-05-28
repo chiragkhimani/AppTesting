@@ -39,8 +39,9 @@ const Checkout = () => {
   const [cardCvv, setCardCvv] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  if (items.length === 0) return <Navigate to="/cart" replace />;
+  if (!submitted && items.length === 0) return <Navigate to="/cart" replace />;
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -67,6 +68,7 @@ const Checkout = () => {
         })),
       };
       const data = await api.createOrder(order);
+      setSubmitted(true);
       clear();
       navigate(`/order-confirmation/${data.order_id}`, {
         replace: true,
