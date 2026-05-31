@@ -129,6 +129,7 @@ const Checkout = () => {
               </div>
             )}
           </section>
+          
 
           <aside
             data-testid="checkout-summary"
