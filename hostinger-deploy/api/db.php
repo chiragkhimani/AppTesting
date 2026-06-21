@@ -6,7 +6,7 @@
  */
 
 // === Hostinger MySQL credentials (hPanel → Databases → MySQL) ===
-define('DB_HOST', 'srv831.hstgr.io');
+define('DB_HOST', 'srv1111.hstgr.io');
 define('DB_NAME', 'u922767486_store');
 define('DB_USER', 'u922767486_chirag_khimani');
 define('DB_PASS', 'SpecialTrust@123');
