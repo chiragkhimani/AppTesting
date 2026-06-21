@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      HOSTINGER_HOST: 217.21.91.171
+      HOSTINGER_HOST: 193.203.185.67
       HOSTINGER_PORT: "65002"
-      HOSTINGER_USER: u797308362
-      HOSTINGER_TARGET: /home/u797308362/domains/seleniumbootcamp.in/public_html
+      HOSTINGER_USER: u922767486
+      HOSTINGER_TARGET: /home/u922767486/domains/seleniumbootcamp.in/public_html
 
     steps:
       - name: Checkout

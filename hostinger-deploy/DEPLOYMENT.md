@@ -61,8 +61,8 @@ Open `hostinger-deploy/api/db.php`. Top of the file:
 
 ```php
 define('DB_HOST', 'srv831.hstgr.io');
-define('DB_NAME', 'u797308362_store');
-define('DB_USER', 'u797308362_chirag_khimani');
+define('DB_NAME', 'u922767486_store');
+define('DB_USER', 'u922767486_chirag_khimani');
 define('DB_PASS', 'SpecialTrust@123');
 ```
 
