@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, LogOut, Package, Receipt } from "lucide-react";
+import { ShoppingCart, LogOut, Package, Receipt, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -47,6 +47,14 @@ const Header = () => {
           >
             <Receipt className="h-4 w-4" />
             Orders
+          </Link>
+          <Link
+            to="/test"
+            data-testid="test-page-link"
+            className="hidden h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 sm:inline-flex"
+          >
+            <FlaskConical className="h-4 w-4" />
+            Test Page
           </Link>
 
           <span

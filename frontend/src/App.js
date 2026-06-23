@@ -11,6 +11,7 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import Orders from "./pages/Orders";
+import TestPage from "./pages/TestPage";
 
 const RequireAuth = ({ children }) => {
   const { user, ready } = useAuth();
@@ -34,6 +35,7 @@ function App() {
               <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
               <Route path="/order-confirmation/:id" element={<RequireAuth><OrderConfirmation /></RequireAuth>} />
               <Route path="/orders" element={<RequireAuth><Orders /></RequireAuth>} />
+              <Route path="/test" element={<RequireAuth><TestPage /></RequireAuth>} />
               <Route path="/" element={<Navigate to="/products" replace />} />
               <Route path="*" element={<Navigate to="/products" replace />} />
             </Routes>
