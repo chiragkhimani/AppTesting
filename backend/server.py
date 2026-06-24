@@ -233,6 +233,7 @@ async def root():
 
 
 @api_router.get("/products.php")
+@api_router.get("/products")
 async def list_products(id: Optional[int] = None):
     if id is not None:
         p = await db.products.find_one({"id": id}, {"_id": 0})
@@ -245,6 +246,7 @@ async def list_products(id: Optional[int] = None):
 
 
 @api_router.post("/auth/login.php")
+@api_router.post("/auth/login")
 async def auth_login(payload: LoginRequest):
     user = await db.users.find_one({"username": payload.username})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
@@ -268,6 +270,7 @@ async def auth_login(payload: LoginRequest):
 
 
 @api_router.post("/signup.php", status_code=201)
+@api_router.post("/signup", status_code=201)
 async def signup(payload: SignupRequest):
     if await db.users.find_one({"username": payload.username}):
         raise HTTPException(status_code=400, detail="Username is already taken")
@@ -291,11 +294,13 @@ async def signup(payload: SignupRequest):
 
 # ---------- Protected routes ----------
 @api_router.get("/profile.php")
+@api_router.get("/profile")
 async def profile(me: dict = Depends(current_user)):
     return {"user": _user_public(me)}
 
 
 @api_router.get("/orders.php")
+@api_router.get("/orders")
 async def list_orders(user_id: Optional[int] = None, me: dict = Depends(current_user)):
     query = {"user_id": user_id} if user_id is not None else {"user_id": me["id"]}
     rows = await db.orders.find(query, {"_id": 0}).to_list(1000)
@@ -304,6 +309,7 @@ async def list_orders(user_id: Optional[int] = None, me: dict = Depends(current_
 
 
 @api_router.post("/orders.php", status_code=201)
+@api_router.post("/orders", status_code=201)
 async def create_order(order: OrderRequest, user: dict = Depends(current_user)):
     if not order.items:
         raise HTTPException(status_code=400, detail="Cart is empty")

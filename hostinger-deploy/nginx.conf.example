@@ -1,0 +1,51 @@
+# QA Demo Store – Nginx server block (for users hosting on Nginx instead of Apache/Hostinger)
+#
+# Drop this into /etc/nginx/sites-available/qa-demo and `ln -s` into sites-enabled/,
+# then `sudo nginx -t && sudo systemctl reload nginx`.
+#
+# Adjust:
+#   server_name              ← your domain
+#   root                     ← absolute path to your public_html (React build + api/)
+#   fastcgi_pass             ← path to your php-fpm socket or 127.0.0.1:9000
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name example.com www.example.com;
+
+    root /var/www/qa-demo/public_html;
+    index index.html;
+
+    # --- Static assets ---------------------------------------------------
+    location ~* \.(?:css|js|woff2?|ttf|eot|svg|png|jpe?g|gif|ico|webp|map)$ {
+        expires 30d;
+        access_log off;
+        try_files $uri =404;
+    }
+
+    # --- API: extensionless routing  -------------------------------------
+    # Order matters. First match wins.
+
+    # 1) /api/<anything>.php  → execute the PHP file directly
+    location ~ ^/api/.+\.php$ {
+        include       snippets/fastcgi-php.conf;
+        fastcgi_pass  unix:/run/php/php8.1-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+    }
+
+    # 2) /api/<anything> (no extension) → try .php behind the scenes
+    location ^~ /api/ {
+        try_files $uri $uri.php =404;
+    }
+
+    # --- React SPA fallback ---------------------------------------------
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # --- Gzip ------------------------------------------------------------
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+}
