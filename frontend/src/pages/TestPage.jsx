@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine,
+  Check,
   ChevronDown,
   ChevronUp,
+  Copy,
   Eye,
   EyeOff,
+  ExternalLink,
   Keyboard,
   MousePointer2,
+  RefreshCw,
+  Sparkles,
   Upload,
 } from "lucide-react";
 import Header from "../components/Header";
@@ -63,9 +68,68 @@ const Btn = ({ testId, onClick, children, variant = "primary", ...rest }) => {
   );
 };
 
+/* ------------------------------ Snippet card ------------------------------ */
+
+const Snippet = ({ code, testId }) => {
+  const [copied, setCopied] = useState(false);
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (_) {
+      /* clipboard unavailable */
+    }
+  };
+  return (
+    <div className="relative overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 text-xs">
+      <pre
+        data-testid={testId}
+        className="overflow-x-auto p-3 pr-12 font-mono leading-relaxed text-zinc-100"
+      >
+        <code>{code}</code>
+      </pre>
+      <button
+        type="button"
+        onClick={onCopy}
+        aria-label="Copy code"
+        data-testid={testId ? `${testId}-copy` : undefined}
+        className="absolute right-2 top-2 inline-flex h-7 items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700"
+      >
+        {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+        {copied ? "copied" : "copy"}
+      </button>
+    </div>
+  );
+};
+
+const Badge = ({ tone = "emerald", children }) => {
+  const tones = {
+    emerald: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+    amber: "bg-amber-100 text-amber-700 ring-amber-200",
+    zinc: "bg-zinc-100 text-zinc-700 ring-zinc-200",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
+};
+
 /* --------------------------------- Page ----------------------------------- */
 
 const SECTIONS = [
+  ["dyn-id", "Dynamic ID"],
+  ["dyn-text", "Dynamic Text"],
+  ["spinner", "Loading Spinner"],
+  ["delayed", "Delayed Element"],
+  ["dyn-table", "Dynamic Table"],
+  ["case-link", "Case-insensitive link"],
+  ["alert-dialog", "Alert Dialog (prompt)"],
+  ["popup", "Popup window"],
+  ["new-tab", "New tab"],
   ["click", "Click actions"],
   ["typing", "Typing & clear"],
   ["hover", "Hover"],
@@ -106,6 +170,37 @@ const TestPage = () => {
           ))}
         </nav>
 
+        <div className="mb-6 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-emerald-800">
+            <Sparkles className="h-4 w-4" /> Playwright scenarios
+          </h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            Real-world locator gotchas — each card ships with the exact
+            Playwright snippet that targets it.
+          </p>
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <DynamicIdSection />
+          <DynamicTextSection />
+          <LoadingSpinnerSection />
+          <DelayedElementSection />
+          <DynamicTableSection />
+          <CaseInsensitiveLinkSection />
+          <AlertDialogSection />
+          <PopupSection />
+          <NewTabSection />
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900">
+            Control fixtures
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Every common browser-automation control, ready for assertion.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ClickSection />
           <TypingSection />
@@ -145,6 +240,400 @@ const PageHeader = () => (
       common browser automation control. Use the &ldquo;Result&rdquo; boxes for assertions.
     </p>
   </header>
+);
+
+/* ============================================================
+   PLAYWRIGHT SCENARIOS
+   ============================================================ */
+
+/* ----- 0a. Dynamic ID -------------------------------------------------- */
+
+const randomId = () => "user_" + Math.random().toString(36).slice(2, 10);
+
+const DynamicIdSection = () => {
+  const [uid, setUid] = useState(randomId());
+  const [clicked, setClicked] = useState(false);
+  return (
+    <Section
+      id="dyn-id"
+      title="Problem 1 — Dynamic ID"
+      hint="The element id changes on every render. Use a prefix selector."
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          id={uid}
+          data-testid="dyn-id-target"
+          onClick={() => setClicked(true)}
+          className="inline-flex h-10 items-center rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+        >
+          Click me ({uid})
+        </button>
+        <Btn
+          testId="dyn-id-regenerate"
+          variant="outline"
+          onClick={() => {
+            setUid(randomId());
+            setClicked(false);
+          }}
+        >
+          <RefreshCw className="h-4 w-4" />
+          Regenerate id
+        </Btn>
+      </div>
+      <Result testId="dyn-id-current" label="current id" value={uid} />
+      <Result testId="dyn-id-result" label="clicked" value={clicked ? "yes" : "no"} />
+      <Snippet
+        testId="dyn-id-snippet"
+        code={`await page.locator('[id^="user_"]').click();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0b. Dynamic Text ------------------------------------------------- */
+
+const NAMES = ["Alice", "Bob", "Chirag", "Diana", "Eve", "Felix", "Gina"];
+
+const DynamicTextSection = () => {
+  const [name, setName] = useState(NAMES[0]);
+  const [now, setNow] = useState(() => new Date().toLocaleTimeString());
+  useEffect(() => {
+    const t = setInterval(() => {
+      setName(NAMES[Math.floor(Math.random() * NAMES.length)]);
+      setNow(new Date().toLocaleTimeString());
+    }, 2000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <Section
+      id="dyn-text"
+      title="Problem 2 — Dynamic Text"
+      hint="Stable substring inside an ever-changing string. Match with /Welcome/."
+    >
+      <div
+        data-testid="dyn-text-banner"
+        className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
+      >
+        <span className="font-semibold">Welcome</span>, {name} —{" "}
+        <span className="font-mono">{now}</span>
+      </div>
+      <Snippet
+        testId="dyn-text-snippet"
+        code={`await expect(page.getByText(/Welcome/)).toBeVisible();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0c. Loading Spinner --------------------------------------------- */
+
+const LoadingSpinnerSection = () => {
+  const [loading, setLoading] = useState(false);
+  const start = () => {
+    setLoading(true);
+    setTimeout(() => setLoading(false), 2500);
+  };
+  return (
+    <Section
+      id="spinner"
+      title="Problem 3 — Loading Spinner"
+      hint="Use .loader class. Wait for it to be hidden before continuing."
+    >
+      <div className="flex items-center gap-3">
+        <Btn testId="spinner-start" onClick={start} disabled={loading}>
+          {loading ? "Loading…" : "Trigger load"}
+        </Btn>
+        {loading && (
+          <span
+            className="loader inline-block h-6 w-6 animate-spin rounded-full border-[3px] border-zinc-200 border-t-emerald-600"
+            data-testid="spinner-loader"
+            aria-label="Loading"
+          />
+        )}
+      </div>
+      <Result
+        testId="spinner-state"
+        label="spinner"
+        value={loading ? "visible" : "hidden"}
+      />
+      <Snippet
+        testId="spinner-snippet"
+        code={`await page.getByTestId('spinner-start').click();
+await expect(page.locator('.loader')).toBeHidden();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0d. Delayed Element --------------------------------------------- */
+
+const DelayedElementSection = () => {
+  const [show, setShow] = useState(false);
+  const [pending, setPending] = useState(false);
+  const trigger = () => {
+    setShow(false);
+    setPending(true);
+    setTimeout(() => {
+      setShow(true);
+      setPending(false);
+    }, 2000);
+  };
+  return (
+    <Section
+      id="delayed"
+      title="Problem 4 — Delayed Element"
+      hint="Element appears 2s after the click. Locator: .result"
+    >
+      <Btn testId="delayed-trigger" onClick={trigger} disabled={pending}>
+        {pending ? "Working…" : "Run computation"}
+      </Btn>
+      {show && (
+        <div
+          className="result rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700"
+          data-testid="delayed-result"
+        >
+          ✅ Computation finished — value = 42
+        </div>
+      )}
+      <Snippet
+        testId="delayed-snippet"
+        code={`await page.getByTestId('delayed-trigger').click();
+await expect(page.locator('.result')).toBeVisible();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0e. Dynamic Table ----------------------------------------------- */
+
+const DYN_PEOPLE = [
+  { id: 101, name: "Alice Johnson", role: "QA Lead",   amount: "$1,200" },
+  { id: 102, name: "Bob Wilson",    role: "Developer", amount: "$2,400" },
+  { id: 103, name: "Chirag Patel",  role: "Designer",  amount: "$1,950" },
+  { id: 104, name: "Diana Hart",    role: "PM",        amount: "$3,100" },
+];
+
+const DynamicTableSection = () => {
+  const [lastAction, setLastAction] = useState("");
+  return (
+    <Section
+      id="dyn-table"
+      title="Problem 5 — Dynamic Table"
+      hint="Pick the row whose text contains the person's name, then click its button."
+    >
+      <div className="overflow-hidden rounded-md border border-zinc-200">
+        <table
+          data-testid="dyn-table"
+          className="w-full text-sm"
+        >
+          <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wider text-zinc-500">
+            <tr>
+              <th className="px-3 py-2">Name</th>
+              <th className="px-3 py-2">Role</th>
+              <th className="px-3 py-2">Amount</th>
+              <th className="px-3 py-2 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {DYN_PEOPLE.map((p) => (
+              <tr key={p.id}>
+                <td className="px-3 py-2 font-medium text-zinc-900">{p.name}</td>
+                <td className="px-3 py-2 text-zinc-600">{p.role}</td>
+                <td className="px-3 py-2 text-zinc-600">{p.amount}</td>
+                <td className="px-3 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setLastAction(`pay:${p.name}`)}
+                    className="inline-flex h-8 items-center rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Pay now
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Result testId="dyn-table-result" label="last action" value={lastAction} />
+      <Snippet
+        testId="dyn-table-snippet"
+        code={`await page.locator('tr')
+  .filter({ hasText: 'Chirag' })
+  .getByRole('button')
+  .click();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0f. Case-insensitive link --------------------------------------- */
+
+const CaseInsensitiveLinkSection = () => {
+  const [clicked, setClicked] = useState(false);
+  return (
+    <Section
+      id="case-link"
+      title="Problem 6 — Case-insensitive link"
+      hint="Match 'WeDDinG photography' regardless of case."
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setClicked(true);
+          }}
+          data-testid="case-link-target"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 underline-offset-4 hover:underline"
+        >
+          WeDDinG photography
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+        {clicked && (
+          <Badge tone="emerald">link clicked</Badge>
+        )}
+      </div>
+      <Snippet
+        testId="case-link-snippet"
+        code={`await page.getByRole('link', { name: /wedding/i }).click();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0g. Alert Dialog (prompt with default accept value) ------------- */
+
+const AlertDialogSection = () => {
+  const [result, setResult] = useState("");
+  return (
+    <Section
+      id="alert-dialog"
+      title="Problem 7 — Alert Dialog"
+      hint="page.on('dialog') can accept, dismiss, or accept-with-value (prompt)."
+    >
+      <div className="flex flex-wrap gap-2">
+        <Btn
+          testId="alert-dialog-alert"
+          variant="outline"
+          onClick={() => {
+            window.alert("This is an alert.");
+            setResult("alert-accepted");
+          }}
+        >
+          Trigger alert()
+        </Btn>
+        <Btn
+          testId="alert-dialog-confirm"
+          variant="outline"
+          onClick={() => {
+            const ok = window.confirm("Do you confirm?");
+            setResult(ok ? "confirm-accepted" : "confirm-dismissed");
+          }}
+        >
+          Trigger confirm()
+        </Btn>
+        <Btn
+          testId="alert-dialog-prompt"
+          onClick={() => {
+            const val = window.prompt("What is your name?", "");
+            setResult(val == null ? "prompt-dismissed" : `prompt-value:${val}`);
+          }}
+        >
+          Trigger prompt()
+        </Btn>
+      </div>
+      <Result testId="alert-dialog-result" value={result} />
+      <Snippet
+        testId="alert-dialog-snippet"
+        code={`page.on('dialog', async dialog => {
+  console.log(dialog.message());
+  await dialog.accept('Chirag');   // for prompt(): types & accepts
+  // await dialog.accept();        // for alert/confirm
+  // await dialog.dismiss();       // cancel
+});
+await page.getByTestId('alert-dialog-prompt').click();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0h. Popup window ------------------------------------------------ */
+
+const PopupSection = () => {
+  const [opened, setOpened] = useState(false);
+  const open = () => {
+    const w = window.open(
+      "about:blank",
+      "qa-popup",
+      "width=420,height=320,menubar=no,toolbar=no"
+    );
+    if (w) {
+      w.document.write(
+        '<!doctype html><title>QA Popup</title>' +
+        '<body style="font-family:system-ui;padding:20px;background:#f4f4f5">' +
+        '<h2 style="margin:0 0 8px">Popup window</h2>' +
+        '<p>This was opened via <code>window.open()</code>.</p>' +
+        '<p>In Playwright: <code>page.waitForEvent(\'popup\')</code>.</p>' +
+        '<button onclick="window.close()" style="margin-top:12px;padding:8px 14px;background:#059669;color:white;border:0;border-radius:6px;cursor:pointer">Close</button>' +
+        '</body>'
+      );
+      setOpened(true);
+    }
+  };
+  return (
+    <Section
+      id="popup"
+      title="Problem 8 — Popup window"
+      hint="window.open() opens a child window — captured with waitForEvent('popup')."
+    >
+      <Btn testId="popup-open" id="open" onClick={open}>
+        Open popup
+      </Btn>
+      <Result
+        testId="popup-state"
+        label="popup"
+        value={opened ? "opened" : "—"}
+      />
+      <Snippet
+        testId="popup-snippet"
+        code={`const popupPromise = page.waitForEvent('popup');
+await page.locator('#open').click();
+const popup = await popupPromise;
+await popup.waitForLoadState();`}
+      />
+    </Section>
+  );
+};
+
+/* ----- 0i. New tab ----------------------------------------------------- */
+
+const NewTabSection = () => (
+  <Section
+    id="new-tab"
+    title="Problem 9 — New tab"
+    hint="target='_blank' opens a new page in the same context."
+  >
+    <a
+      href="https://playwright.dev/"
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid="new-tab-link"
+      className="inline-flex h-10 items-center gap-1.5 rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
+    >
+      <ExternalLink className="h-4 w-4" />
+      Open
+    </a>
+    <Snippet
+      testId="new-tab-snippet"
+      code={`const newPagePromise = context.waitForEvent('page');
+await page.getByText('Open').click();
+const newPage = await newPagePromise;
+await newPage.waitForLoadState();
+// switch back:
+await page.bringToFront();`}
+    />
+  </Section>
 );
 
 /* ------------------------------ 1. Click ---------------------------------- */
