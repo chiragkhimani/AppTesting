@@ -21,23 +21,29 @@ export const setToken = (token) => {
 
 export const getToken = () => localStorage.getItem(STORAGE_TOKEN);
 
+/**
+ * NOTE: As of the .htaccess update, the canonical API URLs are extensionless
+ * (e.g. /api/products instead of /api/products.php). The Apache rewrite rule
+ * + FastAPI mirror aliases keep the old .php paths working for backward
+ * compatibility, but the frontend now uses the cleaner form.
+ */
 export const api = {
   // Public
   login: (username, password) =>
-    http.post("/auth/login.php", { username, password }).then((r) => r.data),
+    http.post("/auth/login", { username, password }).then((r) => r.data),
   signup: (payload) =>
-    http.post("/signup.php", payload).then((r) => r.data),
-  products: () => http.get("/products.php").then((r) => r.data),
+    http.post("/signup", payload).then((r) => r.data),
+  products: () => http.get("/products").then((r) => r.data),
   product: (id) =>
-    http.get("/products.php", { params: { id } }).then((r) => r.data),
+    http.get("/products", { params: { id } }).then((r) => r.data),
   // Protected
-  profile: () => http.get("/profile.php").then((r) => r.data),
+  profile: () => http.get("/profile").then((r) => r.data),
   orders: (userId) =>
     http
-      .get("/orders.php", userId ? { params: { user_id: userId } } : undefined)
+      .get("/orders", userId ? { params: { user_id: userId } } : undefined)
       .then((r) => r.data),
   createOrder: (order) =>
-    http.post("/orders.php", order).then((r) => r.data),
+    http.post("/orders", order).then((r) => r.data),
 };
 
 export default http;

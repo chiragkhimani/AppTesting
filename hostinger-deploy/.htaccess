@@ -1,28 +1,47 @@
 # QA Demo Store – Apache config for Hostinger shared hosting.
 # Place this file at: public_html/.htaccess
-#
-# It does two things:
-#   1) Lets the React Router (BrowserRouter) handle client-side routes by
-#      redirecting unknown URLs to /index.html.
-#   2) Leaves real files (incl. /api/*.php) alone so PHP still executes.
 
 Options -MultiViews
 RewriteEngine On
+
+# ---------------------------------------------------------------------------
+# 1) Extensionless API
+#    Maps /api/users        → /api/users.php
+#         /api/auth/login   → /api/auth/login.php
+#         /api/products?id=1→ /api/products.php?id=1   (query string preserved)
+#
+#    Conditions:
+#      - Only paths that begin with /api/
+#      - URI does NOT already end in .php (avoids /api/users.php → .php.php)
+#      - The requested filename is not an actual file/dir (lets static .php
+#        files still be served directly for backward-compatibility)
+# ---------------------------------------------------------------------------
+RewriteCond %{REQUEST_URI} ^/api/ [NC]
+RewriteCond %{REQUEST_URI} !\.php$ [NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.+?)/?$ api/$1.php [L,QSA]
 
 # Force HTTPS (optional – uncomment after SSL is active on Hostinger)
 # RewriteCond %{HTTPS} off
 # RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
 
-# Do NOT rewrite calls to the PHP API
+# ---------------------------------------------------------------------------
+# 2) Don't hand /api/* over to the React SPA
+# ---------------------------------------------------------------------------
 RewriteCond %{REQUEST_URI} ^/api/ [NC]
 RewriteRule ^ - [L]
 
-# If the requested path is an existing file or directory, serve it as-is
+# ---------------------------------------------------------------------------
+# 3) Serve real files / directories as-is
+# ---------------------------------------------------------------------------
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Otherwise hand the request to React's index.html
+# ---------------------------------------------------------------------------
+# 4) Anything else → React's index.html (client-side router)
+# ---------------------------------------------------------------------------
 RewriteRule ^ index.html [L]
 
 # Gzip for faster delivery
