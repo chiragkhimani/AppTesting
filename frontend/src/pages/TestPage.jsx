@@ -14,6 +14,7 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
+import { toast } from "sonner";
 import Header from "../components/Header";
 
 /* ----------------------------- Section helpers ---------------------------- */
@@ -70,35 +71,119 @@ const Btn = ({ testId, onClick, children, variant = "primary", ...rest }) => {
 
 /* ------------------------------ Snippet card ------------------------------ */
 
-const Snippet = ({ code, testId }) => {
+// Minimal TypeScript / Playwright tokenizer for in-browser syntax highlighting.
+// Avoids pulling in highlight.js / prismjs as deps.
+const TS_KEYWORDS = new Set([
+  "await", "async", "const", "let", "var", "function", "return", "new",
+  "if", "else", "for", "while", "class", "import", "from", "export",
+  "true", "false", "null", "undefined", "of", "in", "as", "type",
+]);
+const TS_BUILTINS = new Set([
+  "page", "expect", "context", "browser", "test", "console", "document", "window",
+]);
+
+const tokenizeTs = (src) => {
+  const out = [];
+  let i = 0;
+  while (i < src.length) {
+    const rest = src.slice(i);
+    let m;
+    if ((m = rest.match(/^\/\/[^\n]*/)))      { out.push(["c", m[0]]); i += m[0].length; continue; }
+    if ((m = rest.match(/^\/\*[\s\S]*?\*\//))) { out.push(["c", m[0]]); i += m[0].length; continue; }
+    if ((m = rest.match(/^'(?:\\.|[^'\\])*'/))) { out.push(["s", m[0]]); i += m[0].length; continue; }
+    if ((m = rest.match(/^"(?:\\.|[^"\\])*"/))) { out.push(["s", m[0]]); i += m[0].length; continue; }
+    if ((m = rest.match(/^`(?:\\.|[^`\\])*`/))) { out.push(["s", m[0]]); i += m[0].length; continue; }
+    if ((m = rest.match(/^\/(?:\\.|[^/\\\n])+\/[gimsuy]*/))) { out.push(["r", m[0]]); i += m[0].length; continue; }
+    if ((m = rest.match(/^\b\d+(?:\.\d+)?\b/))) { out.push(["n", m[0]]); i += m[0].length; continue; }
+    if ((m = rest.match(/^[A-Za-z_$][\w$]*/))) {
+      const w = m[0];
+      const kind = TS_KEYWORDS.has(w) ? "k" : TS_BUILTINS.has(w) ? "b" : "i";
+      out.push([kind, w]);
+      i += w.length;
+      continue;
+    }
+    if ((m = rest.match(/^\s+/))) { out.push(["w", m[0]]); i += m[0].length; continue; }
+    out.push(["p", src[i]]);
+    i++;
+  }
+  return out;
+};
+
+const TOK_CLASS = {
+  c: "text-zinc-500 italic",          // comment
+  s: "text-emerald-300",              // string
+  r: "text-amber-300",                // regex literal
+  n: "text-orange-300",               // number
+  k: "text-pink-400",                 // keyword
+  b: "text-cyan-300",                 // builtin (page, expect, …)
+  i: "text-zinc-100",                 // identifier
+  p: "text-zinc-400",                 // punctuation
+  w: "",                              // whitespace
+};
+
+const Snippet = ({ code, testId, collapsible = true, maxLines = 10 }) => {
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const lines = code.split("\n");
+  const tooLong = collapsible && lines.length > maxLines;
+  const display = tooLong && !expanded
+    ? lines.slice(0, maxLines).join("\n") + "\n…"
+    : code;
+  const tokens = useMemo(() => tokenizeTs(display), [display]);
+
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
+      toast.success("Copied to clipboard");
       setTimeout(() => setCopied(false), 1500);
     } catch (_) {
-      /* clipboard unavailable */
+      toast.error("Clipboard not available");
     }
   };
+
   return (
-    <div className="relative overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 text-xs">
+    <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 text-[12px] shadow-inner ring-1 ring-zinc-900/60">
+      <div className="flex items-center justify-between border-b border-zinc-800/80 bg-zinc-900 px-3 py-1.5">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+          playwright · typescript
+        </span>
+        <button
+          type="button"
+          onClick={onCopy}
+          aria-label="Copy code"
+          data-testid={testId ? `${testId}-copy` : undefined}
+          className="inline-flex h-6 items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-[10px] font-medium text-zinc-200 transition hover:border-emerald-500/40 hover:bg-zinc-700 hover:text-emerald-300"
+        >
+          {copied ? (
+            <Check className="h-3 w-3 text-emerald-400" />
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
       <pre
         data-testid={testId}
-        className="overflow-x-auto p-3 pr-12 font-mono leading-relaxed text-zinc-100"
+        className="overflow-x-auto p-3 font-mono leading-relaxed"
       >
-        <code>{code}</code>
+        <code>
+          {tokens.map((t, idx) => (
+            <span key={idx} className={TOK_CLASS[t[0]]}>
+              {t[1]}
+            </span>
+          ))}
+        </code>
       </pre>
-      <button
-        type="button"
-        onClick={onCopy}
-        aria-label="Copy code"
-        data-testid={testId ? `${testId}-copy` : undefined}
-        className="absolute right-2 top-2 inline-flex h-7 items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700"
-      >
-        {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-        {copied ? "copied" : "copy"}
-      </button>
+      {tooLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="block w-full border-t border-zinc-800/80 bg-zinc-900/60 py-1 text-center text-[11px] font-medium text-zinc-400 transition hover:bg-zinc-900 hover:text-emerald-300"
+        >
+          {expanded ? "Show less" : `Show ${lines.length - maxLines} more lines`}
+        </button>
+      )}
     </div>
   );
 };
@@ -674,6 +759,16 @@ const ClickSection = () => {
       <Result testId="test-click-result" value={`clicks=${count}`} />
       <Result testId="test-doubleclick-result" value={`double-clicks=${dblCount}`} />
       <Result testId="test-rightclick-result" value={right} />
+      <Snippet
+        testId="click-snippet"
+        code={`await page.getByRole('button', { name: 'Click me' }).click();
+
+await page.getByRole('button', { name: 'Double-click me' }).dblclick();
+
+await page.getByRole('button', { name: 'Right-click me' }).click({
+  button: 'right',
+});`}
+      />
     </Section>
   );
 };
@@ -733,6 +828,15 @@ const TypingSection = () => {
           <Result testId="test-clear-result" value={clearable} />
         </div>
       </div>
+      <Snippet
+        testId="typing-snippet"
+        code={`await page.getByTestId('test-type-input').fill('Playwright');
+
+await page.getByTestId('test-clear-input').clear();
+
+// Type character-by-character (useful for autocomplete inputs):
+await page.getByTestId('test-type-input').pressSequentially('Automation', { delay: 50 });`}
+      />
     </Section>
   );
 };
@@ -763,6 +867,11 @@ const HoverSection = () => {
       <Result
         testId="test-hover-result"
         value={hovering ? "hovering" : "idle"}
+      />
+      <Snippet
+        testId="hover-snippet"
+        code={`await page.getByTestId('test-hover-target').hover();
+await expect(page.getByTestId('test-hover-tooltip')).toBeVisible();`}
       />
     </Section>
   );
@@ -818,6 +927,21 @@ const SelectSection = () => {
         </select>
       </label>
       <Result testId="test-multiselect-result" value={multi.join(",")} />
+      <Snippet
+        testId="select-snippet"
+        code={`// By value:
+await page.getByTestId('test-select-dropdown').selectOption('india');
+
+// By visible label:
+await page.getByTestId('test-select-dropdown').selectOption({ label: 'India' });
+
+// By index:
+await page.getByTestId('test-select-dropdown').selectOption({ index: 1 });
+
+// Multi-select:
+await page.getByTestId('test-multiselect-dropdown')
+  .selectOption(['javascript', 'python']);`}
+      />
     </Section>
   );
 };
@@ -871,6 +995,19 @@ const CheckboxSection = () => {
           .map(([k]) => k)
           .join(",")}
       />
+      <Snippet
+        testId="checkbox-snippet"
+        code={`// Check / uncheck a single checkbox:
+await page.getByTestId('test-checkbox-single').check();
+await page.getByTestId('test-checkbox-single').uncheck();
+
+// Or via its visible label:
+await page.getByLabel('I accept the demo terms').check();
+
+// State assertions:
+await expect(page.getByTestId('test-checkbox-single')).toBeChecked();
+await expect(page.getByTestId('test-checkbox-single')).not.toBeChecked();`}
+      />
     </Section>
   );
 };
@@ -896,6 +1033,16 @@ const RadioSection = () => {
         </label>
       ))}
       <Result testId="test-radio-result" value={value} />
+      <Snippet
+        testId="radio-snippet"
+        code={`// Select a radio option by its label:
+await page.getByLabel('Medium').check();
+
+// Or by test id:
+await page.getByTestId('test-radio-medium').check();
+
+await expect(page.getByLabel('Medium')).toBeChecked();`}
+      />
     </Section>
   );
 };
@@ -937,6 +1084,22 @@ const KeyboardSection = () => {
       <Result testId="test-key-last" label="last key" value={last} />
       <Result testId="test-key-combo" label="combo" value={combo} />
       <Result testId="test-key-enter-count" label="enter count" value={enterCount} />
+      <Snippet
+        testId="keyboard-snippet"
+        code={`await page.getByTestId('test-key-target').focus();
+
+// Single keys:
+await page.keyboard.press('Enter');
+await page.keyboard.press('Tab');
+await page.keyboard.press('Escape');
+
+// Modifier combos:
+await page.keyboard.press('Control+A');
+await page.keyboard.press('Shift+ArrowRight');
+
+// Type free-form text:
+await page.keyboard.type('Hello, world');`}
+      />
     </Section>
   );
 };
@@ -1006,6 +1169,23 @@ const MouseSection = () => {
         </div>
       </div>
       <Result testId="test-drop-result" value={dropped ? "dropped" : "empty"} />
+      <Snippet
+        testId="mouse-snippet"
+        code={`// Hover a target:
+await page.getByTestId('test-mouse-track').hover();
+
+// Drag from source onto target:
+await page.getByTestId('test-drag-source')
+  .dragTo(page.getByTestId('test-drop-target'));
+
+// Manual mouse control (when dragTo isn't enough):
+const src = await page.getByTestId('test-drag-source').boundingBox();
+const dst = await page.getByTestId('test-drop-target').boundingBox();
+await page.mouse.move(src!.x + src!.width / 2, src!.y + src!.height / 2);
+await page.mouse.down();
+await page.mouse.move(dst!.x + dst!.width / 2, dst!.y + dst!.height / 2, { steps: 10 });
+await page.mouse.up();`}
+      />
     </Section>
   );
 };
@@ -1054,6 +1234,27 @@ const UploadSection = () => {
         />
       </label>
       <Result testId="test-file-multi-result" value={multi.join(",")} />
+      <Snippet
+        testId="upload-snippet"
+        code={`// Single file:
+await page.getByTestId('test-file-upload').setInputFiles('sample.pdf');
+
+// Multiple files:
+await page.getByTestId('test-file-multi').setInputFiles([
+  'docs/file1.pdf',
+  'docs/file2.pdf',
+]);
+
+// Generate a file on-the-fly:
+await page.getByTestId('test-file-upload').setInputFiles({
+  name: 'hello.txt',
+  mimeType: 'text/plain',
+  buffer: Buffer.from('Hello, world!'),
+});
+
+// Clear the selection:
+await page.getByTestId('test-file-upload').setInputFiles([]);`}
+      />
     </Section>
   );
 };
@@ -1103,6 +1304,19 @@ const DateColorRangeSection = () => {
         />
       </label>
       <Result testId="test-color-result" value={color} />
+      <Snippet
+        testId="date-snippet"
+        code={`// Date input — fill the ISO value directly:
+await page.getByTestId('test-date-picker').fill('2026-07-01');
+
+// Range slider — fill the numeric value:
+await page.getByTestId('test-range-slider').fill('75');
+
+// Color picker — fill with a hex code (no '#' inside the input):
+await page.getByTestId('test-color-picker').fill('#ff00aa');
+
+await expect(page.getByTestId('test-date-result')).toContainText('2026-07-01');`}
+      />
     </Section>
   );
 };
@@ -1196,6 +1410,29 @@ const DialogsSection = () => {
           </div>
         </div>
       )}
+      <Snippet
+        testId="dialogs-snippet"
+        code={`// Register the handler BEFORE the action that triggers the dialog:
+page.on('dialog', async dialog => {
+  console.log(dialog.type(), dialog.message());
+  // alert / confirm:
+  await dialog.accept();
+  // prompt — pass the response text:
+  // await dialog.accept('Chirag');
+  // cancel either kind:
+  // await dialog.dismiss();
+});
+
+await page.getByTestId('test-alert-button').click();
+await page.getByTestId('test-confirm-button').click();
+await page.getByTestId('test-prompt-button').click();
+
+// In-page (non-native) modal:
+await page.getByTestId('test-modal-open').click();
+await expect(page.getByTestId('test-modal')).toBeVisible();
+await page.getByTestId('test-modal-confirm').click();
+await expect(page.getByTestId('test-modal')).toBeHidden();`}
+      />
     </Section>
   );
 };
@@ -1250,6 +1487,22 @@ const WaitSection = () => {
         </div>
       )}
       <Result testId="test-dynamic-text" label="dynamic" value={dynamic} />
+      <Snippet
+        testId="wait-snippet"
+        code={`await page.getByTestId('test-trigger-delayed').click();
+
+// Wait for the loading spinner to disappear:
+await expect(page.locator('.loader')).toBeHidden();
+
+// Wait for the delayed element to appear:
+await expect(page.getByTestId('test-delayed-element')).toBeVisible();
+
+// Wait for a specific text update:
+await expect(page.getByTestId('test-dynamic-text')).toContainText(/tick/);
+
+// Explicit deadline (avoid where possible, prefer auto-waiting expects):
+await page.waitForTimeout(500);`}
+      />
     </Section>
   );
 };
@@ -1301,6 +1554,20 @@ const StateSection = () => {
           </span>
         )}
       </div>
+      <Snippet
+        testId="state-snippet"
+        code={`await page.getByTestId('test-toggle-disabled').click();
+await expect(page.getByTestId('test-disable-target')).toBeDisabled();
+
+await page.getByTestId('test-toggle-disabled').click();
+await expect(page.getByTestId('test-disable-target')).toBeEnabled();
+
+await page.getByTestId('test-toggle-visibility').click();
+await expect(page.getByTestId('test-hidden-target')).toBeHidden();
+
+await page.getByTestId('test-toggle-visibility').click();
+await expect(page.getByTestId('test-hidden-target')).toBeVisible();`}
+      />
     </Section>
   );
 };
@@ -1404,6 +1671,23 @@ const TableSection = () => {
         label="selected ids"
         value={selected.join(",")}
       />
+      <Snippet
+        testId="table-snippet"
+        code={`// Pick a row by its visible text, then check the row's checkbox:
+await page.locator('tr')
+  .filter({ hasText: 'Bob' })
+  .getByRole('checkbox')
+  .check();
+
+// Sort by clicking a column header:
+await page.getByTestId('test-table-sort-name').click();
+
+// Assert a specific cell's content:
+await expect(page.getByTestId('test-table-name-2')).toHaveText('Bob');
+
+// Read all row names into an array:
+const names = await page.locator('[data-testid^="test-table-name-"]').allTextContents();`}
+      />
     </Section>
   );
 };
@@ -1437,6 +1721,21 @@ const IframeAndNewTabSection = () => (
     >
       Open Playwright docs in new tab
     </a>
+    <Snippet
+      testId="iframe-snippet"
+      code={`// Reach into an iframe with frameLocator():
+const frame = page.frameLocator('[data-testid="test-iframe"]');
+await frame.getByRole('button', { name: 'Click inside frame' }).click();
+await expect(frame.getByTestId('iframe-result')).toHaveText('iframe-clicked');
+
+// New tab triggered by target="_blank":
+const newPagePromise = context.waitForEvent('page');
+await page.getByTestId('test-new-tab-link').click();
+const newPage = await newPagePromise;
+await newPage.waitForLoadState();
+await expect(newPage).toHaveURL(/playwright\\.dev/);
+await page.bringToFront();`}
+    />
   </Section>
 );
 
@@ -1481,6 +1780,19 @@ const ScrollSection = () => {
         <ArrowDownToLine className="h-4 w-4" />
         Scroll to anchor
       </Btn>
+      <Snippet
+        testId="scroll-snippet"
+        code={`// Scroll a specific element into view (recommended):
+await page.getByTestId('test-scroll-anchor').scrollIntoViewIfNeeded();
+await expect(page.getByTestId('test-scroll-anchor')).toBeInViewport();
+
+// Programmatic wheel scroll inside a scroll container:
+await page.getByTestId('test-scroll-container').hover();
+await page.mouse.wheel(0, 1000);
+
+// Scroll the whole page to the bottom via the runtime:
+await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));`}
+      />
     </Section>
   );
 };
