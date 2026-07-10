@@ -3,15 +3,15 @@ FastAPI mirror of the PHP/MySQL backend for the Emergent preview environment.
 
 v3 routes:
   Public:
-    GET  /api/products.php
-    GET  /api/products.php?id={id}
-    POST /api/auth/login.php
-    POST /api/signup.php
+    GET  /api/products
+    GET  /api/products?id={id}
+    POST /api/auth/login
+    POST /api/signup
   Protected (Authorization: Bearer <token>):
-    GET  /api/profile.php
-    GET  /api/orders.php
-    GET  /api/orders.php?user_id={id}
-    POST /api/orders.php
+    GET  /api/profile
+    GET  /api/orders
+    GET  /api/orders?user_id={id}
+    POST /api/orders
 """
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -51,7 +51,6 @@ app = FastAPI(
         "REST API for the QA Demo Store (v3). Mirror of the PHP/MySQL backend for preview/dev.\n\n"
         "**Authentication:** Call `POST /api/auth/login` to obtain a Bearer token (64 hex chars, 24h TTL). "
         "Send it on protected routes as `Authorization: Bearer <token>`.\n\n"
-        "Legacy `.php` path aliases (e.g. `/api/products.php`) are supported alongside clean paths."
     ),
     version="3.0.0",
     openapi_tags=OPENAPI_TAGS,

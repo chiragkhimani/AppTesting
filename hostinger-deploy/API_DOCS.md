@@ -34,7 +34,7 @@
 
 ## 1. Public endpoints
 
-### 1.1 `POST /api/signup.php`
+### 1.1 `POST /api/signup`
 
 Create a new user account.
 
@@ -89,14 +89,14 @@ Create a new user account.
 
 **curl**
 ```bash
-curl -X POST https://<host>/api/signup.php \
+curl -X POST https://<host>/api/signup \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","email":"alice@example.com","password":"hunter22"}'
 ```
 
 ---
 
-### 1.2 `POST /api/auth/login.php`
+### 1.2 `POST /api/auth/login`
 
 Exchange username + password for a Bearer token.
 
@@ -149,14 +149,14 @@ Exchange username + password for a Bearer token.
 
 **curl**
 ```bash
-curl -X POST https://<host>/api/auth/login.php \
+curl -X POST https://<host>/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"standard_user","password":"secret_sauce"}'
 ```
 
 ---
 
-### 1.3 `GET /api/products.php`
+### 1.3 `GET /api/products`
 
 List all products (catalog).
 
@@ -189,12 +189,12 @@ List all products (catalog).
 
 **curl**
 ```bash
-curl https://<host>/api/products.php
+curl https://<host>/api/products
 ```
 
 ---
 
-### 1.4 `GET /api/products.php?id={id}`
+### 1.4 `GET /api/products?id={id}`
 
 Retrieve a single product.
 
@@ -235,7 +235,7 @@ Retrieve a single product.
 
 **curl**
 ```bash
-curl https://<host>/api/products.php?id=1
+curl https://<host>/api/products?id=1
 ```
 
 ---
@@ -246,9 +246,9 @@ curl https://<host>/api/products.php?id=1
 > ```
 > Authorization: Bearer <token>
 > ```
-> Obtain a token from `POST /api/auth/login.php`. Missing / invalid / expired token always returns `401`.
+> Obtain a token from `POST /api/auth/login`. Missing / invalid / expired token always returns `401`.
 
-### 2.1 `GET /api/profile.php`
+### 2.1 `GET /api/profile`
 
 Return the currently-authenticated user.
 
@@ -283,12 +283,12 @@ Return the currently-authenticated user.
 
 **curl**
 ```bash
-curl -H "Authorization: Bearer $TOKEN" https://<host>/api/profile.php
+curl -H "Authorization: Bearer $TOKEN" https://<host>/api/profile
 ```
 
 ---
 
-### 2.2 `GET /api/orders.php`
+### 2.2 `GET /api/orders`
 
 List orders belonging to **the authenticated user**, newest first.
 
@@ -333,12 +333,12 @@ If the user has no orders, returns `{"orders":[]}`.
 
 **curl**
 ```bash
-curl -H "Authorization: Bearer $TOKEN" https://<host>/api/orders.php
+curl -H "Authorization: Bearer $TOKEN" https://<host>/api/orders
 ```
 
 ---
 
-### 2.3 `GET /api/orders.php?user_id={id}`
+### 2.3 `GET /api/orders?user_id={id}`
 
 List orders for a specific user (admin / cross-user view).
 
@@ -358,12 +358,12 @@ Same response shape as §2.2.
 
 **curl**
 ```bash
-curl -H "Authorization: Bearer $TOKEN" "https://<host>/api/orders.php?user_id=1"
+curl -H "Authorization: Bearer $TOKEN" "https://<host>/api/orders?user_id=1"
 ```
 
 ---
 
-### 2.4 `POST /api/orders.php`
+### 2.4 `POST /api/orders`
 
 Create a new order for the authenticated user.
 
@@ -421,7 +421,7 @@ Create a new order for the authenticated user.
 
 **curl**
 ```bash
-curl -X POST https://<host>/api/orders.php \
+curl -X POST https://<host>/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -437,7 +437,7 @@ curl -X POST https://<host>/api/orders.php \
 
 ### 3.1 Token issuance
 
-1. Client sends credentials to `POST /api/auth/login.php`.
+1. Client sends credentials to `POST /api/auth/login`.
 2. Backend looks up the user by `username`, verifies `password` against `password_hash` using bcrypt (`password_verify` / `bcrypt.checkpw`).
 3. On success, backend generates `token = bin2hex(random_bytes(32))` (PHP) / `secrets.token_hex(32)` (FastAPI), stores it in `auth_tokens(user_id, token, expires_at, created_at)` with `expires_at = NOW() + 24h`, and returns it to the client.
 4. Client stores the token in `localStorage` (key `qa_demo_token`).
@@ -468,14 +468,14 @@ For each protected request:
 
 | Endpoint                              | Auth      |
 |---------------------------------------|-----------|
-| `POST /api/signup.php`                | Public    |
-| `POST /api/auth/login.php`            | Public    |
-| `GET  /api/products.php`              | Public    |
-| `GET  /api/products.php?id=N`         | Public    |
-| `GET  /api/profile.php`               | Bearer    |
-| `GET  /api/orders.php`                | Bearer    |
-| `GET  /api/orders.php?user_id=N`      | Bearer    |
-| `POST /api/orders.php`                | Bearer    |
+| `POST /api/signup`                | Public    |
+| `POST /api/auth/login`            | Public    |
+| `GET  /api/products`              | Public    |
+| `GET  /api/products?id=N`         | Public    |
+| `GET  /api/profile`               | Bearer    |
+| `GET  /api/orders`                | Bearer    |
+| `GET  /api/orders?user_id=N`      | Bearer    |
+| `POST /api/orders`                | Bearer    |
 
 ---
 
@@ -590,21 +590,21 @@ All seeded passwords: `secret_sauce` (bcrypt-hashed in DB).
 
 ```bash
 # 1) Sign up (or skip this and use a seeded user)
-curl -s -X POST https://<host>/api/signup.php \
+curl -s -X POST https://<host>/api/signup \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","email":"alice@example.com","password":"hunter22"}'
 
 # 2) Log in to get a token
-TOKEN=$(curl -s -X POST https://<host>/api/auth/login.php \
+TOKEN=$(curl -s -X POST https://<host>/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"hunter22"}' \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
 
 # 3) Browse products (public)
-curl -s https://<host>/api/products.php
+curl -s https://<host>/api/products
 
 # 4) Place an order
-curl -s -X POST https://<host>/api/orders.php \
+curl -s -X POST https://<host>/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -614,10 +614,10 @@ curl -s -X POST https://<host>/api/orders.php \
   }'
 
 # 5) See my orders
-curl -s -H "Authorization: Bearer $TOKEN" https://<host>/api/orders.php
+curl -s -H "Authorization: Bearer $TOKEN" https://<host>/api/orders
 
 # 6) Who am I
-curl -s -H "Authorization: Bearer $TOKEN" https://<host>/api/profile.php
+curl -s -H "Authorization: Bearer $TOKEN" https://<host>/api/profile
 ```
 
 ---

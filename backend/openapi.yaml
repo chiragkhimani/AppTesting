@@ -14,8 +14,6 @@ info:
     2. Use the returned token on protected routes: `Authorization: Bearer <token>`.
     3. Tokens are opaque (64 hex chars), valid for 24 hours.
 
-    Legacy `.php` aliases (e.g. `/products.php`) are supported alongside clean paths.
-
 servers:
   - url: /api
     description: Relative API base (append to your host)
@@ -389,29 +387,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /products.php:
-    get:
-      tags: [Public]
-      summary: List all products or get one by id (.php alias)
-      operationId: listOrGetProductsPhp
-      parameters:
-        - name: id
-          in: query
-          required: false
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Product list or single product
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/ProductsListResponse"
-                  - $ref: "#/components/schemas/ProductResponse"
-        "404":
-          description: Product not found
-
   /auth/login:
     post:
       tags: [Auth]
@@ -448,29 +423,6 @@ paths:
               example:
                 detail: Sorry, this user has been locked out.
 
-  /auth/login.php:
-    post:
-      tags: [Auth]
-      summary: Login (.php alias)
-      operationId: loginPhp
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LoginRequest"
-      responses:
-        "200":
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LoginResponse"
-        "401":
-          description: Invalid credentials
-        "403":
-          description: Account locked
-
   /signup:
     post:
       tags: [Auth]
@@ -497,27 +449,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /signup.php:
-    post:
-      tags: [Auth]
-      summary: Sign up (.php alias)
-      operationId: signupPhp
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SignupRequest"
-      responses:
-        "201":
-          description: Account created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SignupResponse"
-        "400":
-          description: Validation error or duplicate username/email
-
   /profile:
     get:
       tags: [Protected]
@@ -538,23 +469,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
-  /profile.php:
-    get:
-      tags: [Protected]
-      summary: Current user profile (.php alias)
-      operationId: getProfilePhp
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Authenticated user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProfileResponse"
-        "401":
-          description: Unauthorized
 
   /orders:
     get:
@@ -630,50 +544,3 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
-  /orders.php:
-    get:
-      tags: [Protected]
-      summary: List orders (.php alias)
-      operationId: listOrdersPhp
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: user_id
-          in: query
-          required: false
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Order list
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrdersListResponse"
-        "401":
-          description: Unauthorized
-
-    post:
-      tags: [Protected]
-      summary: Create order (.php alias)
-      operationId: createOrderPhp
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateOrderRequest"
-      responses:
-        "201":
-          description: Order created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CreateOrderResponse"
-        "400":
-          description: Bad request
-        "401":
-          description: Unauthorized
