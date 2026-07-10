@@ -13,7 +13,8 @@ v3 routes:
     GET  /api/orders.php?user_id={id}
     POST /api/orders.php
 """
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -38,8 +39,25 @@ TOKEN_TTL_HOURS = 24
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PHONE_RE = re.compile(r"^[+\d][\d\s\-()]{5,19}$")
 
-app = FastAPI(title="QA Demo Store API (FastAPI mirror)")
+OPENAPI_TAGS = [
+    {"name": "Public", "description": "No authentication required."},
+    {"name": "Auth", "description": "Login and account registration."},
+    {"name": "Protected", "description": "Requires `Authorization: Bearer <token>` from login."},
+]
+
+app = FastAPI(
+    title="QA Demo Store API",
+    description=(
+        "REST API for the QA Demo Store (v3). Mirror of the PHP/MySQL backend for preview/dev.\n\n"
+        "**Authentication:** Call `POST /api/auth/login` to obtain a Bearer token (64 hex chars, 24h TTL). "
+        "Send it on protected routes as `Authorization: Bearer <token>`.\n\n"
+        "Legacy `.php` path aliases (e.g. `/api/products.php`) are supported alongside clean paths."
+    ),
+    version="3.0.0",
+    openapi_tags=OPENAPI_TAGS,
+)
 api_router = APIRouter(prefix="/api")
+bearer_scheme = HTTPBearer(auto_error=False, description="Opaque token from POST /api/auth/login")
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -145,15 +163,56 @@ async def seed_database():
 
 
 # ---------- Pydantic models ----------
-class LoginRequest(BaseModel):
+class UserPublic(BaseModel):
+    id: int
     username: str
-    password: str
+    email: str = ""
+    first_name: str = ""
+    last_name: str = ""
+    locked: bool = False
+    created_at: Optional[str] = None
+
+
+class Product(BaseModel):
+    id: int
+    name: str
+    description: str
+    price: float
+    image_url: str
+    category: str
+    stock: int
+
+
+class OrderItemOut(BaseModel):
+    product_id: int
+    name: str
+    price: float
+    quantity: int
+
+
+class OrderOut(BaseModel):
+    id: int
+    user_id: int
+    full_name: str
+    address: str
+    city: str
+    state: str
+    pincode: str
+    phone: str
+    total: float
+    created_at: str
+    items: List[OrderItemOut]
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(examples=["standard_user"])
+    password: str = Field(examples=["secret_sauce"])
 
 
 class SignupRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=60)
-    email: str
-    password: str = Field(min_length=6)
+    username: str = Field(min_length=3, max_length=60, examples=["alice"])
+    email: str = Field(examples=["alice@example.com"])
+    password: str = Field(min_length=6, examples=["hunter22"])
 
     @field_validator("username")
     @classmethod
@@ -175,6 +234,44 @@ class SignupRequest(BaseModel):
 class OrderItemIn(BaseModel):
     product_id: int
     quantity: int = Field(ge=1)
+
+
+class LoginResponse(BaseModel):
+    token: str
+    expires_at: str
+    user: UserPublic
+
+
+class SignupResponse(BaseModel):
+    success: bool
+    message: str
+    user: UserPublic
+
+
+class ProductsListResponse(BaseModel):
+    products: List[Product]
+
+
+class ProductResponse(BaseModel):
+    product: Product
+
+
+class ProfileResponse(BaseModel):
+    user: UserPublic
+
+
+class OrdersListResponse(BaseModel):
+    orders: List[OrderOut]
+
+
+class CreateOrderResponse(BaseModel):
+    success: bool
+    order_id: int
+    total: float
+
+
+class RootResponse(BaseModel):
+    message: str
 
 
 class OrderRequest(BaseModel):
@@ -208,12 +305,12 @@ def _user_public(u: dict) -> dict:
     }
 
 
-async def current_user(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization or not authorization.lower().startswith("bearer "):
+async def current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+) -> dict:
+    if credentials is None or not credentials.credentials:
         raise HTTPException(status_code=401, detail="Missing bearer token")
-    token = authorization.split(" ", 1)[1].strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = credentials.credentials
     row = await db.auth_tokens.find_one({"token": token})
     if not row:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -227,14 +324,44 @@ async def current_user(authorization: Optional[str] = Header(None)) -> dict:
 
 
 # ---------- Public routes ----------
-@api_router.get("/")
+@api_router.get("/", response_model=RootResponse, tags=["Public"], summary="API root")
 async def root():
     return {"message": "QA Demo Store API v3 – mirror of PHP backend"}
 
 
-@api_router.get("/products.php")
-@api_router.get("/products")
-async def list_products(id: Optional[int] = None):
+@api_router.get(
+    "/products.php",
+    tags=["Public"],
+    summary="List all products or get one by id (.php alias)",
+    include_in_schema=False,
+)
+@api_router.get(
+    "/products",
+    tags=["Public"],
+    summary="List all products or get one by id",
+    description="Omit `id` to list the catalog. Pass `id` to fetch a single product.",
+    responses={
+        200: {
+            "description": "Product list (no `id`) or single product (`id` set)",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "list": {
+                            "summary": "All products",
+                            "value": {"products": [{"id": 1, "name": "Sauce Labs Backpack", "price": 29.99}]},
+                        },
+                        "single": {
+                            "summary": "One product",
+                            "value": {"product": {"id": 1, "name": "Sauce Labs Backpack", "price": 29.99}},
+                        },
+                    }
+                }
+            },
+        },
+        404: {"description": "Product not found"},
+    },
+)
+async def list_products(id: Optional[int] = Query(None, description="Product id; omit to list all")):
     if id is not None:
         p = await db.products.find_one({"id": id}, {"_id": 0})
         if not p:
@@ -245,8 +372,24 @@ async def list_products(id: Optional[int] = None):
     return {"products": products}
 
 
-@api_router.post("/auth/login.php")
-@api_router.post("/auth/login")
+@api_router.post(
+    "/auth/login.php",
+    response_model=LoginResponse,
+    tags=["Auth"],
+    summary="Login (.php alias)",
+    include_in_schema=False,
+)
+@api_router.post(
+    "/auth/login",
+    response_model=LoginResponse,
+    tags=["Auth"],
+    summary="Login",
+    description="Exchange username and password for a Bearer token (24-hour TTL).",
+    responses={
+        401: {"description": "Invalid credentials"},
+        403: {"description": "Account locked"},
+    },
+)
 async def auth_login(payload: LoginRequest):
     user = await db.users.find_one({"username": payload.username})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
@@ -269,8 +412,25 @@ async def auth_login(payload: LoginRequest):
     }
 
 
-@api_router.post("/signup.php", status_code=201)
-@api_router.post("/signup", status_code=201)
+@api_router.post(
+    "/signup.php",
+    response_model=SignupResponse,
+    status_code=201,
+    tags=["Auth"],
+    summary="Sign up (.php alias)",
+    include_in_schema=False,
+)
+@api_router.post(
+    "/signup",
+    response_model=SignupResponse,
+    status_code=201,
+    tags=["Auth"],
+    summary="Sign up",
+    description="Create a new user account.",
+    responses={
+        400: {"description": "Validation error or username/email already taken"},
+    },
+)
 async def signup(payload: SignupRequest):
     if await db.users.find_one({"username": payload.username}):
         raise HTTPException(status_code=400, detail="Username is already taken")
@@ -293,23 +453,69 @@ async def signup(payload: SignupRequest):
 
 
 # ---------- Protected routes ----------
-@api_router.get("/profile.php")
-@api_router.get("/profile")
+@api_router.get(
+    "/profile.php",
+    response_model=ProfileResponse,
+    tags=["Protected"],
+    summary="Current user profile (.php alias)",
+    include_in_schema=False,
+)
+@api_router.get(
+    "/profile",
+    response_model=ProfileResponse,
+    tags=["Protected"],
+    summary="Current user profile",
+    responses={401: {"description": "Missing, invalid, or expired token"}},
+)
 async def profile(me: dict = Depends(current_user)):
     return {"user": _user_public(me)}
 
 
-@api_router.get("/orders.php")
-@api_router.get("/orders")
-async def list_orders(user_id: Optional[int] = None, me: dict = Depends(current_user)):
+@api_router.get(
+    "/orders.php",
+    response_model=OrdersListResponse,
+    tags=["Protected"],
+    summary="List orders (.php alias)",
+    include_in_schema=False,
+)
+@api_router.get(
+    "/orders",
+    response_model=OrdersListResponse,
+    tags=["Protected"],
+    summary="List orders",
+    description="Returns orders for the authenticated user. Pass `user_id` to filter by another user.",
+    responses={401: {"description": "Missing, invalid, or expired token"}},
+)
+async def list_orders(
+    user_id: Optional[int] = Query(None, description="Filter by user id; defaults to caller"),
+    me: dict = Depends(current_user),
+):
     query = {"user_id": user_id} if user_id is not None else {"user_id": me["id"]}
     rows = await db.orders.find(query, {"_id": 0}).to_list(1000)
     rows.sort(key=lambda x: x["id"], reverse=True)
     return {"orders": rows}
 
 
-@api_router.post("/orders.php", status_code=201)
-@api_router.post("/orders", status_code=201)
+@api_router.post(
+    "/orders.php",
+    response_model=CreateOrderResponse,
+    status_code=201,
+    tags=["Protected"],
+    summary="Create order (.php alias)",
+    include_in_schema=False,
+)
+@api_router.post(
+    "/orders",
+    response_model=CreateOrderResponse,
+    status_code=201,
+    tags=["Protected"],
+    summary="Create order",
+    description="Order total is always recomputed server-side from current product prices.",
+    responses={
+        400: {"description": "Validation error, empty cart, or unknown product id"},
+        401: {"description": "Missing, invalid, or expired token"},
+    },
+)
 async def create_order(order: OrderRequest, user: dict = Depends(current_user)):
     if not order.items:
         raise HTTPException(status_code=400, detail="Cart is empty")

@@ -53,6 +53,7 @@ jobs:
           # like /api and /.htaccess that are deployed separately below.
           rsync -az --delete \
             --exclude 'api/' \
+            --exclude 'docs/' \
             --exclude '.htaccess' \
             -e "ssh -p ${HOSTINGER_PORT}" \
             frontend/build/ \
@@ -64,6 +65,13 @@ jobs:
             -e "ssh -p ${HOSTINGER_PORT}" \
             hostinger-deploy/api/ \
             "${HOSTINGER_USER}@${HOSTINGER_HOST}:${HOSTINGER_TARGET}/api/"
+
+      - name: Deploy Swagger docs to Hostinger (rsync over SSH)
+        run: |
+          rsync -az --delete \
+            -e "ssh -p ${HOSTINGER_PORT}" \
+            hostinger-deploy/docs/ \
+            "${HOSTINGER_USER}@${HOSTINGER_HOST}:${HOSTINGER_TARGET}/docs/"
 
       - name: Deploy .htaccess to Hostinger (scp over SSH)
         run: |

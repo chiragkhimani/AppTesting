@@ -11,6 +11,9 @@ Final layout on the server:
 public_html/
 ├── index.html                ← React build entry
 ├── static/                   ← React JS/CSS/assets
+├── docs/                     ← Swagger UI (public API docs)
+│   ├── index.html
+│   └── openapi.yaml
 ├── .htaccess                 ← React Router + caching
 └── api/
     ├── db.php                ← DB connection + helpers + Bearer auth
@@ -77,7 +80,21 @@ Upload `frontend/build/*` to `public_html/`, plus `.htaccess`, plus the entire
 
 ---
 
-## 5. Smoke-test
+## 5. API documentation (Swagger)
+
+After deploy, interactive API docs are public at:
+
+**https://seleniumbootcamp.in/docs/**
+
+Anyone can browse endpoints, authenticate with **Authorize** (paste a Bearer token
+from login), and try requests against the live API.
+
+Source files live in `hostinger-deploy/docs/` and are deployed automatically by
+the GitHub Actions workflow.
+
+---
+
+## 6. Smoke-test
 
 ```bash
 # Public
@@ -110,7 +127,7 @@ curl -i -H "Authorization: Bearer $TOKEN" https://<your-domain>/api/orders.php
 
 ---
 
-## 6. API contract (v3)
+## 7. API contract (v3)
 
 All responses are JSON; errors use `{"error":"…","detail":"…"}`.
 
@@ -147,7 +164,7 @@ All responses are JSON; errors use `{"error":"…","detail":"…"}`.
 
 ---
 
-## 7. Demo credentials (seeded)
+## 8. Demo credentials (seeded)
 
 | Username          | Email                | Password       | Behavior         |
 |-------------------|----------------------|----------------|------------------|
@@ -159,7 +176,7 @@ Sign up flow creates additional users via `POST /api/signup.php`.
 
 ---
 
-## 8. Stable selectors (Selenium / Playwright)
+## 9. Stable selectors (Selenium / Playwright)
 
 ### Login
 | Element            | Selector                              |
@@ -210,7 +227,7 @@ Sign up flow creates additional users via `POST /api/signup.php`.
 
 ---
 
-## 9. Security checklist
+## 10. Security checklist
 
 - [x] DB credentials only in `api/db.php`.
 - [x] Prepared statements (PDO) everywhere.
@@ -222,7 +239,7 @@ Sign up flow creates additional users via `POST /api/signup.php`.
 
 ---
 
-## 10. File listing
+## 11. File listing
 
 ```
 hostinger-deploy/
@@ -234,6 +251,9 @@ hostinger-deploy/
 │   ├── orders.php           ← updated for v3 fields
 │   └── auth/
 │       └── login.php
+├── docs/
+│   ├── index.html           ← Swagger UI
+│   └── openapi.yaml         ← OpenAPI 3 spec
 ├── sql/
 │   ├── schema.sql           ← v3 (fresh install)
 │   ├── seed.sql             ← demo users + products

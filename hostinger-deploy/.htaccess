@@ -27,9 +27,13 @@ RewriteRule ^api/(.+?)/?$ api/$1.php [L,QSA]
 # RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
 
 # ---------------------------------------------------------------------------
-# 2) Don't hand /api/* over to the React SPA
+# 2) Don't hand /api/* or /docs/* over to the React SPA
 # ---------------------------------------------------------------------------
 RewriteCond %{REQUEST_URI} ^/api/ [NC]
+RewriteRule ^ - [L]
+
+RewriteRule ^docs/?$ docs/index.html [L]
+RewriteCond %{REQUEST_URI} ^/docs/ [NC]
 RewriteRule ^ - [L]
 
 # ---------------------------------------------------------------------------
