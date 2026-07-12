@@ -5,7 +5,7 @@
 | Environment        | Base URL                                              |
 |--------------------|-------------------------------------------------------|
 | Hostinger (prod)   | `https://<your-domain>/api`                           |
-| Emergent preview   | `${REACT_APP_BACKEND_URL}/api` (FastAPI mirror)       |
+| Local dev          | `${REACT_APP_BACKEND_URL}/api` (FastAPI mirror)       |
 
 **Conventions**
 

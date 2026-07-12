@@ -1,5 +1,5 @@
 """
-FastAPI mirror of the PHP/MySQL backend for the Emergent preview environment.
+FastAPI mirror of the PHP/MySQL backend for local development.
 
 v3 routes:
   Public:

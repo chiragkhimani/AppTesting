@@ -1,5 +1,5 @@
 // API base URL.
-// - In the Emergent preview environment, we hit the FastAPI mirror at REACT_APP_BACKEND_URL/api
+// - In local development, we hit the FastAPI mirror at REACT_APP_BACKEND_URL/api
 // - On Hostinger production, the React build sits at /public_html and PHP at /public_html/api,
 //   so a relative "/api" path works. Set REACT_APP_API_BASE="/api" before `yarn build` for Hostinger.
 const ENV_BASE = process.env.REACT_APP_API_BASE;
