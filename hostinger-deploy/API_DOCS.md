@@ -4,7 +4,7 @@
 
 | Environment        | Base URL                                              |
 |--------------------|-------------------------------------------------------|
-| Hostinger (prod)   | `https://<your-domain>/api`                           |
+| Hostinger (prod)   | `https://chiragkhimani.in/playground/api`             |
 | Local dev          | `${REACT_APP_BACKEND_URL}/api` (FastAPI mirror)       |
 
 **Conventions**

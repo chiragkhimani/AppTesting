@@ -6,7 +6,7 @@ info:
     REST API for the QA Demo Store (v3).
 
     **Base paths**
-    - Production (PHP): `https://<your-domain>/api`
+    - Production (PHP): `https://chiragkhimani.in/playground/api`
     - Preview (FastAPI mirror): `${REACT_APP_BACKEND_URL}/api`
 
     **Authentication**
@@ -15,9 +15,9 @@ info:
     3. Tokens are opaque (64 hex chars), valid for 24 hours.
 
 servers:
-  - url: /api
+  - url: /playground/api
     description: Relative API base (append to your host)
-  - url: https://your-domain.com/api
+  - url: https://chiragkhimani.in/playground/api
     description: Production (Hostinger)
   - url: http://localhost:8000/api
     description: Local FastAPI preview

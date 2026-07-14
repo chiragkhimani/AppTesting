@@ -9,21 +9,27 @@ Final layout on the server:
 
 ```
 public_html/
-├── index.html                ← React build entry
-├── static/                   ← React JS/CSS/assets
-├── docs/                     ← Swagger UI (public API docs)
-│   ├── index.html
-│   └── openapi.yaml
-├── .htaccess                 ← React Router + caching
-└── api/
-    ├── db.php                ← DB connection + helpers + Bearer auth
-    ├── products.php          ← GET / GET?id — public
-    ├── signup.php            ← POST — public, creates a user
-    ├── profile.php           ← GET — Bearer required
-    ├── orders.php            ← GET / GET?user_id / POST — Bearer required
-    └── auth/
-        └── login.php         ← POST — returns Bearer token
+└── playground/
+    ├── index.html            ← React build entry
+    ├── static/               ← React JS/CSS/assets
+    ├── docs/                 ← Swagger UI (public API docs)
+    │   ├── index.html
+    │   └── openapi.yaml
+    ├── .htaccess             ← React Router + caching
+    └── api/
+        ├── db.php            ← DB connection + helpers + Bearer auth
+        ├── products.php      ← GET / GET?id — public
+        ├── signup.php        ← POST — public, creates a user
+        ├── profile.php       ← GET — Bearer required
+        ├── orders.php        ← GET / GET?user_id / POST — Bearer required
+        └── auth/
+            └── login.php     ← POST — returns Bearer token
 ```
+
+Live URLs:
+- App: `https://chiragkhimani.in/playground`
+- API: `https://chiragkhimani.in/playground/api`
+- Docs: `https://chiragkhimani.in/playground/docs`
 
 ---
 
@@ -49,12 +55,13 @@ SHOW COLUMNS FROM orders;         -- full_name, state, pincode, phone present
 
 ```bash
 cd /app/frontend
-REACT_APP_API_BASE="/api" yarn build
+REACT_APP_API_BASE="/playground/api" yarn build
 ```
 
-`REACT_APP_API_BASE=/api` makes the React build call `/api/auth/login.php`,
-`/api/signup.php`, `/api/products.php`, `/api/orders.php`, … on the SAME
-domain — no CORS needed.
+`REACT_APP_API_BASE=/playground/api` makes the React build call `/playground/api/auth/login`,
+`/playground/api/signup`, `/playground/api/products`, `/playground/api/orders`, … on the SAME
+domain — no CORS needed. The `homepage` field in `package.json` is set to `/playground` so
+static assets and client-side routing work under that path.
 
 ---
 
@@ -75,8 +82,9 @@ Token TTL is 24h (`TOKEN_TTL_SECONDS`).
 
 ## 4. Upload
 
-Upload `frontend/build/*` to `public_html/`, plus `.htaccess`, plus the entire
-`api/` directory. Make sure `public_html/api/auth/login.php` exists.
+Upload `frontend/build/*` to `public_html/playground/`, plus `.htaccess`, plus the entire
+`api/` directory under `public_html/playground/api/`. Make sure
+`public_html/playground/api/auth/login.php` exists.
 
 ---
 
@@ -84,7 +92,7 @@ Upload `frontend/build/*` to `public_html/`, plus `.htaccess`, plus the entire
 
 After deploy, interactive API docs are public at:
 
-**https://seleniumbootcamp.in/docs/**
+**https://chiragkhimani.in/playground/docs/**
 
 Anyone can browse endpoints, authenticate with **Authorize** (paste a Bearer token
 from login), and try requests against the live API.
@@ -98,21 +106,21 @@ the GitHub Actions workflow.
 
 ```bash
 # Public
-curl -i https://<your-domain>/api/products.php
+curl -i https://chiragkhimani.in/playground/api/products.php
 
 # Sign up
-curl -i -X POST https://<your-domain>/api/signup.php \
+curl -i -X POST https://chiragkhimani.in/playground/api/signup.php \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","email":"alice@example.com","password":"hunter2"}'
 
 # Login → token
-TOKEN=$(curl -s -X POST https://<your-domain>/api/auth/login.php \
+TOKEN=$(curl -s -X POST https://chiragkhimani.in/playground/api/auth/login.php \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"hunter2"}' \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
 
 # Place order
-curl -i -X POST https://<your-domain>/api/orders.php \
+curl -i -X POST https://chiragkhimani.in/playground/api/orders.php \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -122,7 +130,7 @@ curl -i -X POST https://<your-domain>/api/orders.php \
   }'
 
 # My orders
-curl -i -H "Authorization: Bearer $TOKEN" https://<your-domain>/api/orders.php
+curl -i -H "Authorization: Bearer $TOKEN" https://chiragkhimani.in/playground/api/orders.php
 ```
 
 ---

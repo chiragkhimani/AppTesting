@@ -23,7 +23,7 @@ const RequireAuth = ({ children }) => {
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
+      <BrowserRouter basename="/playground">
         <AuthProvider>
           <CartProvider>
             <Routes>

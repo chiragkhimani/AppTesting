@@ -17,7 +17,7 @@ jobs:
       HOSTINGER_HOST: 193.203.185.67
       HOSTINGER_PORT: "65002"
       HOSTINGER_USER: u922767486
-      HOSTINGER_TARGET: /home/u922767486/domains/seleniumbootcamp.in/public_html
+      HOSTINGER_TARGET: /home/u922767486/domains/chiragkhimani.in/public_html/playground
 
     steps:
       - name: Checkout
@@ -32,6 +32,8 @@ jobs:
 
       - name: Build frontend (Yarn)
         working-directory: frontend
+        env:
+          REACT_APP_API_BASE: /playground/api
         run: |
           corepack prepare yarn@1.22.22 --activate
           yarn install --frozen-lockfile
