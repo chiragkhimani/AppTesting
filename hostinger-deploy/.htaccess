@@ -32,7 +32,9 @@ RewriteRule ^api/(.+?)/?$ api/$1.php [L,QSA]
 RewriteCond %{REQUEST_URI} ^/api/ [NC]
 RewriteRule ^ - [L]
 
-RewriteRule ^docs/?$ docs/index.html [L]
+# Force trailing slash so relative asset paths in /docs/ resolve correctly.
+RewriteRule ^docs$ /docs/ [R=301,L]
+RewriteRule ^docs/$ docs/index.html [L]
 RewriteCond %{REQUEST_URI} ^/docs/ [NC]
 RewriteRule ^ - [L]
 
