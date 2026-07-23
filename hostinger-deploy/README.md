@@ -11,7 +11,7 @@ hostinger-deploy/
 │   ├── profile.php
 │   ├── orders.php
 │   └── auth/login.php
-├── docs/             ← Swagger UI (upload to public_html/playground/docs/)
+├── swagger/          ← Swagger UI (upload to public_html/playground/swagger/)
 │   ├── index.html
 │   └── openapi.yaml
 ├── sql/
@@ -23,6 +23,6 @@ hostinger-deploy/
 
 **Live app:** https://chiragkhimani.in/playground  
 **Live API:** https://chiragkhimani.in/playground/api  
-**Live Swagger docs:** https://chiragkhimani.in/playground/docs/
+**Live Swagger docs:** https://chiragkhimani.in/playground/swagger/
 
 See **DEPLOYMENT.md** for full instructions.

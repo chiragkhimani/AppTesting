@@ -12,7 +12,7 @@ public_html/
 └── playground/
     ├── index.html            ← React build entry
     ├── static/               ← React JS/CSS/assets
-    ├── docs/                 ← Swagger UI (public API docs)
+    ├── swagger/              ← Swagger UI (public API docs)
     │   ├── index.html
     │   └── openapi.yaml
     ├── .htaccess             ← React Router + caching
@@ -29,7 +29,7 @@ public_html/
 Live URLs:
 - App: `https://chiragkhimani.in/playground`
 - API: `https://chiragkhimani.in/playground/api`
-- Docs: `https://chiragkhimani.in/playground/docs`
+- Swagger: `https://chiragkhimani.in/playground/swagger`
 
 ---
 
@@ -92,12 +92,12 @@ Upload `frontend/build/*` to `public_html/playground/`, plus `.htaccess`, plus t
 
 After deploy, interactive API docs are public at:
 
-**https://chiragkhimani.in/playground/docs/**
+**https://chiragkhimani.in/playground/swagger/**
 
 Anyone can browse endpoints, authenticate with **Authorize** (paste a Bearer token
 from login), and try requests against the live API.
 
-Source files live in `hostinger-deploy/docs/` and are deployed automatically by
+Source files live in `hostinger-deploy/swagger/` and are deployed automatically by
 the GitHub Actions workflow.
 
 ---
@@ -259,7 +259,7 @@ hostinger-deploy/
 │   ├── orders.php           ← updated for v3 fields
 │   └── auth/
 │       └── login.php
-├── docs/
+├── swagger/
 │   ├── index.html           ← Swagger UI
 │   └── openapi.yaml         ← OpenAPI 3 spec
 ├── sql/

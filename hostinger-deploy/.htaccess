@@ -22,14 +22,14 @@ RewriteRule ^api/(.+?)/?$ api/$1.php [L,QSA]
 # RewriteRule ^(.*)$ https://%{HTTP_HOST}/playground/$1 [R=301,L]
 
 # ---------------------------------------------------------------------------
-# 2) Don't hand /playground/api/* or /playground/docs/* over to the React SPA
+# 2) Don't hand /playground/api/* or /playground/swagger/* over to the React SPA
 # ---------------------------------------------------------------------------
 RewriteCond %{REQUEST_URI} ^/playground/api/ [NC]
 RewriteRule ^ - [L]
 
-RewriteRule ^docs$ /playground/docs/ [R=301,L]
-RewriteRule ^docs/$ docs/index.html [L]
-RewriteCond %{REQUEST_URI} ^/playground/docs/ [NC]
+RewriteRule ^swagger$ /playground/swagger/ [R=301,L]
+RewriteRule ^swagger/$ swagger/index.html [L]
+RewriteCond %{REQUEST_URI} ^/playground/swagger/ [NC]
 RewriteRule ^ - [L]
 
 # ---------------------------------------------------------------------------
