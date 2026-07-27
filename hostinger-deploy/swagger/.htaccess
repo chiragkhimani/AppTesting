@@ -1,0 +1,3 @@
+# Serve Swagger UI static files directly (no React SPA fallback).
+Options -MultiViews -Indexes
+DirectoryIndex index.html

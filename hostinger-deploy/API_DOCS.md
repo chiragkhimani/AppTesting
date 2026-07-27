@@ -1,4 +1,4 @@
-# QA Demo Store — REST API Documentation (v3)
+# QA Demo Store — REST API Documentation (v4)
 
 **Base URL**
 
@@ -156,6 +156,60 @@ curl -X POST https://<host>/api/auth/login \
 
 ---
 
+### 1.2b `POST /api/auth/forgot-password`
+
+Demo password reset: set a new password using username + new password + confirm.
+
+| Field        | Value                                    |
+|--------------|------------------------------------------|
+| Auth         | **None** (public)                        |
+| Method       | `POST`                                   |
+| Request body | JSON                                     |
+| Success code | `200 OK`                                 |
+| Side effects | Updates `password_hash`; deletes all `auth_tokens` for that user |
+
+**Request body**
+
+| Field              | Type   | Rules                                      |
+|--------------------|--------|--------------------------------------------|
+| `username`         | string | required                                   |
+| `password`         | string | min 6 characters                           |
+| `confirm_password` | string | must equal `password`                      |
+
+```json
+{
+  "username": "standard_user",
+  "password": "new_secret",
+  "confirm_password": "new_secret"
+}
+```
+
+**Success response — `200`**
+
+```json
+{
+  "success": true,
+  "message": "Password updated successfully. You can now log in with your new password."
+}
+```
+
+**Error responses**
+
+| Status | When                                              |
+|--------|---------------------------------------------------|
+| 400    | missing fields, password < 6, mismatch             |
+| 403    | account locked                                    |
+| 404    | username not found                                |
+
+**curl**
+```bash
+curl -X POST https://<host>/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"username":"standard_user","password":"new_secret","confirm_password":"new_secret"}'
+```
+
+---
+
 ### 1.3 `GET /api/products`
 
 List all products (catalog).
@@ -175,17 +229,19 @@ List all products (catalog).
   "products": [
     {
       "id": 1,
-      "name": "Sauce Labs Backpack",
-      "description": "Carry.allTheThings() …",
-      "price": 29.99,
+      "name": "Urban Commute Backpack",
+      "description": "A slim 20L everyday backpack with a padded 15-inch laptop sleeve…",
+      "price": 49.99,
       "image_url": "https://images.unsplash.com/photo-…",
       "category": "Bags",
-      "stock": 25
+      "stock": 40
     },
     …
   ]
 }
 ```
+
+Returns **12** catalog products.
 
 **curl**
 ```bash
@@ -216,12 +272,12 @@ Retrieve a single product.
 {
   "product": {
     "id": 1,
-    "name": "Sauce Labs Backpack",
-    "description": "…",
-    "price": 29.99,
+      "name": "Urban Commute Backpack",
+      "description": "A slim 20L everyday backpack with a padded 15-inch laptop sleeve…",
+      "price": 49.99,
     "image_url": "…",
     "category": "Bags",
-    "stock": 25
+    "stock": 40
   }
 }
 ```
@@ -312,16 +368,22 @@ List orders belonging to **the authenticated user**, newest first.
       "state": "MH",
       "pincode": "400001",
       "phone": "+91 9876543210",
-      "total": 69.97,
+      "subtotal": 61.97,
+      "shipping": 5.99,
+      "tax": 4.96,
+      "total": 72.92,
+      "status": "pending",
       "created_at": "2026-02-28T07:42:11+00:00",
       "items": [
-        { "product_id": 1, "name": "Sauce Labs Backpack",   "price": 29.99, "quantity": 1 },
-        { "product_id": 3, "name": "Sauce Labs Bolt T-Shirt","price": 15.99, "quantity": 2 }
+        { "product_id": 1, "name": "Urban Commute Backpack", "price": 49.99, "quantity": 1 },
+        { "product_id": 3, "name": "Soft Cotton Crew Tee",   "price": 22.99, "quantity": 2 }
       ]
     }
   ]
 }
 ```
+
+Pricing rules (server-side): tax = 8% of subtotal; shipping = `$5.99` or free when subtotal ≥ `$100`; `total` = subtotal + shipping + tax.
 
 If the user has no orders, returns `{"orders":[]}`.
 
@@ -405,7 +467,14 @@ Create a new order for the authenticated user.
 **Success response — `201`**
 
 ```json
-{ "success": true, "order_id": 13, "total": 61.97 }
+{
+  "success": true,
+  "order_id": 13,
+  "subtotal": 61.97,
+  "shipping": 5.99,
+  "tax": 4.96,
+  "total": 72.92
+}
 ```
 
 **Error responses**
@@ -429,6 +498,57 @@ curl -X POST https://<host>/api/orders \
     "state":"Maharashtra","pincode":"400001","phone":"+91 9876543210",
     "items":[{"product_id":1,"quantity":1},{"product_id":3,"quantity":2}]
   }'
+```
+
+---
+
+### 2.5 `POST /api/cancel-order`
+
+Soft-cancel an order owned by the authenticated user (`status` → `cancelled`).
+
+| Field        | Value                       |
+|--------------|-----------------------------|
+| Auth         | **Bearer**                  |
+| Method       | `POST`                      |
+| Request body | JSON                        |
+| Success code | `200 OK`                    |
+
+**Request body**
+
+| Field      | Type    | Rules                |
+|------------|---------|----------------------|
+| `order_id` | integer | required, ≥ 1        |
+
+```json
+{ "order_id": 12 }
+```
+
+**Success response — `200`**
+
+```json
+{
+  "success": true,
+  "message": "Order cancelled",
+  "order_id": 12,
+  "status": "cancelled"
+}
+```
+
+**Error responses**
+
+| Status | When                                              |
+|--------|---------------------------------------------------|
+| 400    | missing/invalid `order_id`, or already cancelled  |
+| 401    | missing / invalid / expired token                 |
+| 403    | order belongs to another user                     |
+| 404    | order not found                                   |
+
+**curl**
+```bash
+curl -X POST https://<host>/api/cancel-order \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"order_id":12}'
 ```
 
 ---
@@ -470,12 +590,14 @@ For each protected request:
 |---------------------------------------|-----------|
 | `POST /api/signup`                | Public    |
 | `POST /api/auth/login`            | Public    |
+| `POST /api/auth/forgot-password`  | Public    |
 | `GET  /api/products`              | Public    |
 | `GET  /api/products?id=N`         | Public    |
 | `GET  /api/profile`               | Bearer    |
 | `GET  /api/orders`                | Bearer    |
 | `GET  /api/orders?user_id=N`      | Bearer    |
 | `POST /api/orders`                | Bearer    |
+| `POST /api/cancel-order`          | Bearer    |
 
 ---
 
@@ -529,7 +651,11 @@ For each protected request:
   state:       string;
   pincode:     string;
   phone:       string;
-  total:       number;        // server-recomputed = Σ items[i].price × items[i].quantity
+  subtotal:    number;        // Σ items[i].price × items[i].quantity
+  shipping:    number;        // 5.99 or 0 when subtotal ≥ 100
+  tax:         number;        // 8% of subtotal
+  total:       number;        // subtotal + shipping + tax
+  status:      "pending" | "cancelled";
   created_at:  string;
   items:       OrderItem[];   // present in GET responses
 }
@@ -616,10 +742,16 @@ curl -s -X POST https://<host>/api/orders \
 # 5) See my orders
 curl -s -H "Authorization: Bearer $TOKEN" https://<host>/api/orders
 
-# 6) Who am I
+# 6) Cancel an order (replace 13 with a real order_id)
+curl -s -X POST https://<host>/api/cancel-order \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"order_id":13}'
+
+# 7) Who am I
 curl -s -H "Authorization: Bearer $TOKEN" https://<host>/api/profile
 ```
 
 ---
 
-_Last updated: 2026-02-28 — v3._
+_Last updated: 2026-07-27 — v4 (forgot-password + cancel-order)._

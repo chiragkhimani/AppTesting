@@ -31,6 +31,8 @@ export const api = {
   // Public
   login: (username, password) =>
     http.post("/auth/login", { username, password }).then((r) => r.data),
+  forgotPassword: (payload) =>
+    http.post("/auth/forgot-password", payload).then((r) => r.data),
   signup: (payload) =>
     http.post("/signup", payload).then((r) => r.data),
   products: () => http.get("/products").then((r) => r.data),
@@ -44,6 +46,8 @@ export const api = {
       .then((r) => r.data),
   createOrder: (order) =>
     http.post("/orders", order).then((r) => r.data),
+  cancelOrder: (orderId) =>
+    http.post("/cancel-order", { order_id: orderId }).then((r) => r.data),
 };
 
 export default http;

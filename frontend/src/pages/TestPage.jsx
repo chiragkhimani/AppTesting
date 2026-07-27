@@ -228,8 +228,11 @@ const SECTIONS = [
   ["dialogs", "Native dialogs"],
   ["wait", "Wait conditions"],
   ["state", "Disabled / visibility"],
-  ["table", "Table & selection"],
-  ["iframe", "Iframe & new tab"],
+  ["table", "Sortable table"],
+  ["pagination", "Pagination"],
+  ["shadow", "Shadow DOM"],
+  ["iframe", "Iframe (nested)"],
+  ["toast", "Toast messages"],
   ["scroll", "Scroll"],
 ];
 
@@ -301,7 +304,10 @@ const TestPage = () => {
           <WaitSection />
           <StateSection />
           <TableSection />
+          <PaginationSection />
+          <ShadowDomSection />
           <IframeAndNewTabSection />
+          <ToastSection />
           <ScrollSection />
         </div>
       </main>
@@ -1572,17 +1578,19 @@ await expect(page.getByTestId('test-hidden-target')).toBeVisible();`}
   );
 };
 
-/* ---------------------------- 14. Table ----------------------------------- */
+/* ---------------------------- 14. Sortable table -------------------------- */
 
 const PEOPLE = [
   { id: 1, name: "Alice", role: "QA Lead", city: "Mumbai" },
   { id: 2, name: "Bob", role: "Developer", city: "Bengaluru" },
   { id: 3, name: "Charlie", role: "Designer", city: "Hyderabad" },
   { id: 4, name: "Diana", role: "PM", city: "Pune" },
+  { id: 5, name: "Eve", role: "SDET", city: "Chennai" },
+  { id: 6, name: "Frank", role: "Developer", city: "Delhi" },
 ];
 
 const TableSection = () => {
-  const [sort, setSort] = useState({ key: "id", dir: "asc" });
+  const [sort, setSort] = useState({ key: "name", dir: "asc" });
   const [selected, setSelected] = useState([]);
 
   const rows = useMemo(() => {
@@ -1611,42 +1619,59 @@ const TableSection = () => {
   return (
     <Section
       id="table"
-      title="Table & selection"
-      hint="Sortable columns + row checkboxes."
+      title="Sortable table & selection"
+      hint="Click column headers to sort (aria-sort). Select rows with checkboxes."
     >
       <div className="overflow-hidden rounded-md border border-zinc-200">
         <table data-testid="test-table" className="w-full text-sm">
           <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wider text-zinc-500">
             <tr>
               <th className="px-3 py-2"></th>
-              {headers.map((h) => (
-                <th key={h.key} className="px-3 py-2">
-                  <button
-                    type="button"
-                    data-testid={`test-table-sort-${h.key}`}
-                    onClick={() =>
-                      setSort((s) => ({
-                        key: h.key,
-                        dir: s.key === h.key && s.dir === "asc" ? "desc" : "asc",
-                      }))
-                    }
-                    className="inline-flex items-center gap-1 font-semibold hover:text-zinc-900"
+              {headers.map((h) => {
+                const active = sort.key === h.key;
+                const ariaSort = active
+                  ? sort.dir === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none";
+                return (
+                  <th
+                    key={h.key}
+                    className="px-3 py-2"
+                    aria-sort={ariaSort}
+                    data-testid={`test-table-th-${h.key}`}
                   >
-                    {h.label}
-                    {sort.key === h.key &&
-                      (sort.dir === "asc" ? (
-                        <ChevronUp className="h-3 w-3" />
-                      ) : (
-                        <ChevronDown className="h-3 w-3" />
-                      ))}
-                  </button>
-                </th>
-              ))}
+                    <button
+                      type="button"
+                      data-testid={`test-table-sort-${h.key}`}
+                      onClick={() =>
+                        setSort((s) => ({
+                          key: h.key,
+                          dir: s.key === h.key && s.dir === "asc" ? "desc" : "asc",
+                        }))
+                      }
+                      className="inline-flex items-center gap-1 font-semibold hover:text-zinc-900"
+                    >
+                      {h.label}
+                      {active &&
+                        (sort.dir === "asc" ? (
+                          <ChevronUp className="h-3 w-3" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" />
+                        ))}
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
-            {rows.map((p) => (
-              <tr key={p.id} data-testid={`test-table-row-${p.id}`}>
+          <tbody data-testid="test-table-body" className="divide-y divide-zinc-100">
+            {rows.map((p, idx) => (
+              <tr
+                key={p.id}
+                data-testid={`test-table-row-${p.id}`}
+                data-row-index={idx}
+              >
                 <td className="px-3 py-2">
                   <input
                     type="checkbox"
@@ -1656,16 +1681,39 @@ const TableSection = () => {
                     className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                   />
                 </td>
-                <td data-testid={`test-table-name-${p.id}`} className="px-3 py-2 font-medium text-zinc-900">
+                <td
+                  data-testid={`test-table-name-${p.id}`}
+                  className="px-3 py-2 font-medium text-zinc-900"
+                >
                   {p.name}
                 </td>
-                <td className="px-3 py-2 text-zinc-600">{p.role}</td>
-                <td className="px-3 py-2 text-zinc-600">{p.city}</td>
+                <td
+                  data-testid={`test-table-role-${p.id}`}
+                  className="px-3 py-2 text-zinc-600"
+                >
+                  {p.role}
+                </td>
+                <td
+                  data-testid={`test-table-city-${p.id}`}
+                  className="px-3 py-2 text-zinc-600"
+                >
+                  {p.city}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <Result
+        testId="test-table-sort-state"
+        label="sort"
+        value={`${sort.key}:${sort.dir}`}
+      />
+      <Result
+        testId="test-table-first-name"
+        label="first row name"
+        value={rows[0]?.name}
+      />
       <Result
         testId="test-table-selected"
         label="selected ids"
@@ -1673,60 +1721,317 @@ const TableSection = () => {
       />
       <Snippet
         testId="table-snippet"
-        code={`// Pick a row by its visible text, then check the row's checkbox:
-await page.locator('tr')
-  .filter({ hasText: 'Bob' })
-  .getByRole('checkbox')
-  .check();
-
-// Sort by clicking a column header:
+        code={`// Sort by Name ascending, then assert order via first cell + aria-sort:
 await page.getByTestId('test-table-sort-name').click();
+await expect(page.getByTestId('test-table-th-name')).toHaveAttribute('aria-sort', /ascending|descending/);
+await expect(page.getByTestId('test-table-sort-state')).toContainText('name:');
 
-// Assert a specific cell's content:
-await expect(page.getByTestId('test-table-name-2')).toHaveText('Bob');
+const namesAsc = await page
+  .locator('[data-testid="test-table-body"] tr td:nth-child(2)')
+  .allTextContents();
+const sorted = [...namesAsc].sort((a, b) => a.localeCompare(b));
+// Toggle until ascending matches natural A→Z:
+if (namesAsc.join() !== sorted.join()) {
+  await page.getByTestId('test-table-sort-name').click();
+}
+await expect(page.getByTestId('test-table-first-name')).toContainText('Alice');
 
-// Read all row names into an array:
-const names = await page.locator('[data-testid^="test-table-name-"]').allTextContents();`}
+// Pick a row by visible text, then check its checkbox:
+await page.locator('tr').filter({ hasText: 'Bob' }).getByRole('checkbox').check();
+await expect(page.getByTestId('test-table-selected')).toContainText('2');`}
       />
     </Section>
   );
 };
 
-/* ----------------------- 15. Iframe & new tab ----------------------------- */
+/* --------------------------- 14b. Pagination ------------------------------ */
 
-const IframeAndNewTabSection = () => (
-  <Section
-    id="iframe"
-    title="Iframe & new tab"
-    hint="Switch frame / handle new window."
-  >
-    <iframe
-      data-testid="test-iframe"
-      title="inner-frame"
-      srcDoc={
-        '<!doctype html><html><body style="font-family:system-ui;padding:16px;background:#f4f4f5;color:#18181b;margin:0;">' +
-        '<h3 data-testid="iframe-heading" style="margin:0 0 8px">Inside the iframe</h3>' +
-        '<button data-testid="iframe-button" onclick="document.getElementById(\'r\').innerText=\'iframe-clicked\'">Click inside frame</button>' +
-        '<p id="r" data-testid="iframe-result" style="margin-top:8px;font-family:ui-monospace,monospace;color:#52525b">—</p>' +
-        '</body></html>'
-      }
-      className="h-44 w-full rounded-md border border-zinc-200 bg-white"
-    />
-    <a
-      href="https://playwright.dev/"
-      target="_blank"
-      rel="noopener noreferrer"
-      data-testid="test-new-tab-link"
-      className="inline-flex h-10 items-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+const PAGE_ITEMS = Array.from({ length: 23 }, (_, i) => ({
+  id: i + 1,
+  name: `Catalog item ${String(i + 1).padStart(2, "0")}`,
+  category: ["Bags", "Apparel", "Accessories"][i % 3],
+}));
+
+const PaginationSection = () => {
+  const pageSize = 5;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(PAGE_ITEMS.length / pageSize);
+
+  const slice = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return PAGE_ITEMS.slice(start, start + pageSize);
+  }, [page]);
+
+  return (
+    <Section
+      id="pagination"
+      title="Pagination"
+      hint="Page through a list — assert page number, disabled edges, and visible rows."
     >
-      Open Playwright docs in new tab
-    </a>
-    <Snippet
-      testId="iframe-snippet"
-      code={`// Reach into an iframe with frameLocator():
+      <ul
+        data-testid="pagination-list"
+        className="divide-y divide-zinc-100 rounded-md border border-zinc-200"
+      >
+        {slice.map((item) => (
+          <li
+            key={item.id}
+            data-testid={`pagination-item-${item.id}`}
+            className="flex items-center justify-between px-3 py-2 text-sm"
+          >
+            <span className="font-medium text-zinc-900">{item.name}</span>
+            <span className="text-xs text-zinc-500">{item.category}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div
+        data-testid="pagination-controls"
+        className="flex flex-wrap items-center gap-2"
+      >
+        <Btn
+          testId="pagination-prev"
+          variant="outline"
+          disabled={page <= 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          Previous
+        </Btn>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+          <button
+            key={n}
+            type="button"
+            data-testid={`pagination-page-${n}`}
+            aria-current={n === page ? "page" : undefined}
+            onClick={() => setPage(n)}
+            className={`inline-flex h-10 min-w-10 items-center justify-center rounded-md px-3 text-sm font-semibold transition ${
+              n === page
+                ? "bg-emerald-600 text-white"
+                : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+        <Btn
+          testId="pagination-next"
+          variant="outline"
+          disabled={page >= totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Next
+        </Btn>
+      </div>
+
+      <Result testId="pagination-page" label="page" value={`${page} / ${totalPages}`} />
+      <Result
+        testId="pagination-range"
+        label="showing"
+        value={`${slice[0]?.id}-${slice[slice.length - 1]?.id} of ${PAGE_ITEMS.length}`}
+      />
+      <Snippet
+        testId="pagination-snippet"
+        code={`// Start on page 1 — Previous should be disabled:
+await expect(page.getByTestId('pagination-prev')).toBeDisabled();
+await expect(page.getByTestId('pagination-page')).toContainText('1 /');
+
+// Go to page 2 via numbered control:
+await page.getByTestId('pagination-page-2').click();
+await expect(page.getByTestId('pagination-page')).toContainText('2 /');
+await expect(page.getByTestId('pagination-item-6')).toBeVisible();
+await expect(page.getByTestId('pagination-item-1')).toHaveCount(0);
+
+// Walk with Next until the last page, then Next is disabled:
+await page.getByTestId('pagination-next').click();
+await expect(page.getByTestId('pagination-page-3')).toHaveAttribute('aria-current', 'page');`}
+      />
+    </Section>
+  );
+};
+
+/* ---------------------------- 14c. Shadow DOM ----------------------------- */
+
+const ShadowDomSection = () => {
+  const hostRef = useRef(null);
+  const [result, setResult] = useState("");
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    let root = host.shadowRoot;
+    if (!root) {
+      root = host.attachShadow({ mode: "open" });
+    }
+
+    root.innerHTML = `
+      <style>
+        :host { display: block; }
+        .card {
+          font-family: system-ui, sans-serif;
+          border: 1px dashed #a1a1aa;
+          border-radius: 0.75rem;
+          background: #fafafa;
+          padding: 12px;
+        }
+        button {
+          height: 36px; padding: 0 12px; border-radius: 6px;
+          border: 0; background: #059669; color: white;
+          font-weight: 600; font-size: 13px; cursor: pointer;
+        }
+        button.secondary { background: #fff; color: #3f3f46; border: 1px solid #e4e4e7; }
+        input {
+          height: 36px; width: 100%; max-width: 220px; margin-top: 8px;
+          border: 1px solid #e4e4e7; border-radius: 6px; padding: 0 10px;
+          font-size: 13px;
+        }
+        #status { margin-top: 8px; font-family: ui-monospace, monospace; font-size: 12px; color: #52525b; }
+        #nested-host { margin-top: 10px; display: block; }
+      </style>
+      <div class="card">
+        <div style="font-size:12px;color:#71717a;margin-bottom:8px">Open shadow root</div>
+        <button id="shadow-btn" data-testid="shadow-button">Click shadow button</button>
+        <div>
+          <input id="shadow-input" data-testid="shadow-input" placeholder="Type in shadow input" />
+        </div>
+        <div id="nested-host"></div>
+        <p id="status" data-testid="shadow-status">—</p>
+      </div>
+    `;
+
+    const btn = root.getElementById("shadow-btn");
+    const input = root.getElementById("shadow-input");
+    const status = root.getElementById("status");
+    const nestedHost = root.getElementById("nested-host");
+
+    const setStatus = (msg) => {
+      status.textContent = msg;
+      setResult(msg);
+    };
+
+    const onClick = () => setStatus("shadow-clicked");
+    const onInput = () => setStatus(`typed:${input.value}`);
+    btn.addEventListener("click", onClick);
+    input.addEventListener("input", onInput);
+
+    let nestedRoot = nestedHost.shadowRoot;
+    if (!nestedRoot) {
+      nestedRoot = nestedHost.attachShadow({ mode: "open" });
+    }
+    nestedRoot.innerHTML = `
+      <button id="deep-btn" data-testid="shadow-nested-button"
+        style="height:32px;padding:0 10px;border-radius:6px;border:1px solid #e4e4e7;background:#fff;font-size:12px;font-weight:600;cursor:pointer">
+        Nested shadow click
+      </button>
+    `;
+    const deepBtn = nestedRoot.getElementById("deep-btn");
+    const onDeep = () => setStatus("nested-shadow-clicked");
+    deepBtn.addEventListener("click", onDeep);
+
+    return () => {
+      btn.removeEventListener("click", onClick);
+      input.removeEventListener("input", onInput);
+      deepBtn.removeEventListener("click", onDeep);
+    };
+  }, []);
+
+  return (
+    <Section
+      id="shadow"
+      title="Shadow DOM"
+      hint="Open + nested shadow roots. Playwright pierces open shadow DOM with locators."
+    >
+      <div
+        ref={hostRef}
+        data-testid="shadow-host"
+        className="min-h-[8rem]"
+      />
+      <Result testId="shadow-result" label="last action" value={result} />
+      <Snippet
+        testId="shadow-snippet"
+        code={`// Playwright pierces OPEN shadow roots automatically:
+const host = page.getByTestId('shadow-host');
+
+await host.getByTestId('shadow-button').click();
+await expect(page.getByTestId('shadow-result')).toHaveText('shadow-clicked');
+
+await host.getByTestId('shadow-input').fill('qa-shadow');
+await expect(page.getByTestId('shadow-result')).toHaveText('typed:qa-shadow');
+
+// Nested shadow root (shadow inside shadow):
+await host.getByTestId('shadow-nested-button').click();
+await expect(page.getByTestId('shadow-result')).toHaveText('nested-shadow-clicked');
+
+// Explicit pierce (equivalent):
+// await page.locator('[data-testid="shadow-host"] >> [data-testid="shadow-button"]').click();`}
+      />
+    </Section>
+  );
+};
+
+/* ----------------------- 15. Iframe (nested) & new tab -------------------- */
+
+const IframeAndNewTabSection = () => {
+  const nestedInner =
+    "<!doctype html><html><body style='font-family:system-ui;margin:0;padding:12px;background:#ecfdf5'>" +
+    "<p style='margin:0 0 8px;font-size:13px'>Nested iframe</p>" +
+    "<button data-testid='nested-iframe-button' " +
+    "onclick=\"document.getElementById('nr').innerText='nested-iframe-clicked'\">" +
+    "Click nested frame</button>" +
+    "<p id='nr' data-testid='nested-iframe-result' " +
+    "style='margin:8px 0 0;font-family:ui-monospace,monospace;font-size:12px;color:#065f46'>—</p>" +
+    "</body></html>";
+
+  const outerSrcDoc =
+    "<!doctype html><html><body style='font-family:system-ui;padding:16px;background:#f4f4f5;color:#18181b;margin:0'>" +
+    "<h3 data-testid='iframe-heading' style='margin:0 0 8px'>Outer iframe</h3>" +
+    "<button data-testid='iframe-button' " +
+    "onclick=\"document.getElementById('r').innerText='iframe-clicked'\">Click inside frame</button>" +
+    "<input data-testid='iframe-input' placeholder='Type in iframe' " +
+    "style='display:block;margin-top:8px;height:34px;padding:0 10px;border:1px solid #e4e4e7;border-radius:6px;width:220px' " +
+    "oninput=\"document.getElementById('r').innerText='iframe-typed:'+this.value\" />" +
+    "<p id='r' data-testid='iframe-result' style='margin:8px 0;font-family:ui-monospace,monospace;color:#52525b'>—</p>" +
+    "<iframe data-testid='nested-iframe' title='nested-frame' " +
+    "style='width:100%;height:120px;border:1px solid #d4d4d8;border-radius:8px;background:#fff' " +
+    "srcdoc=\"" +
+    nestedInner.replace(/"/g, "&quot;") +
+    "\"></iframe>" +
+    "</body></html>";
+
+  return (
+    <Section
+      id="iframe"
+      title="Iframe (nested) & new tab"
+      hint="frameLocator for outer frame, then nested frame. Also target=_blank tabs."
+    >
+      <iframe
+        data-testid="test-iframe"
+        title="inner-frame"
+        srcDoc={outerSrcDoc}
+        className="h-72 w-full rounded-md border border-zinc-200 bg-white"
+      />
+      <a
+        href="https://playwright.dev/"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="test-new-tab-link"
+        className="inline-flex h-10 items-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+      >
+        Open Playwright docs in new tab
+      </a>
+      <Snippet
+        testId="iframe-snippet"
+        code={`// Outer iframe:
 const frame = page.frameLocator('[data-testid="test-iframe"]');
-await frame.getByRole('button', { name: 'Click inside frame' }).click();
+await frame.getByTestId('iframe-button').click();
 await expect(frame.getByTestId('iframe-result')).toHaveText('iframe-clicked');
+
+await frame.getByTestId('iframe-input').fill('inside-frame');
+await expect(frame.getByTestId('iframe-result')).toHaveText('iframe-typed:inside-frame');
+
+// Nested iframe (iframe inside iframe):
+const nested = frame.frameLocator('[data-testid="nested-iframe"]');
+await nested.getByTestId('nested-iframe-button').click();
+await expect(nested.getByTestId('nested-iframe-result')).toHaveText('nested-iframe-clicked');
 
 // New tab triggered by target="_blank":
 const newPagePromise = context.waitForEvent('page');
@@ -1735,9 +2040,74 @@ const newPage = await newPagePromise;
 await newPage.waitForLoadState();
 await expect(newPage).toHaveURL(/playwright\\.dev/);
 await page.bringToFront();`}
-    />
-  </Section>
-);
+      />
+    </Section>
+  );
+};
+
+/* --------------------------- 15b. Toast messages -------------------------- */
+
+const ToastSection = () => {
+  const [last, setLast] = useState("");
+
+  const fire = (kind) => {
+    const msg =
+      kind === "success"
+        ? "Order placed successfully"
+        : kind === "error"
+          ? "Payment failed — try again"
+          : "Profile saved (info)";
+    setLast(`${kind}:${msg}`);
+    if (kind === "success") toast.success(msg);
+    else if (kind === "error") toast.error(msg);
+    else toast.message(msg);
+  };
+
+  return (
+    <Section
+      id="toast"
+      title="Toast messages"
+      hint="Sonner toasts — assert appearance, text, and auto-dismiss."
+    >
+      <div className="flex flex-wrap gap-2">
+        <Btn testId="toast-success-btn" onClick={() => fire("success")}>
+          Show success toast
+        </Btn>
+        <Btn
+          testId="toast-error-btn"
+          variant="danger"
+          onClick={() => fire("error")}
+        >
+          Show error toast
+        </Btn>
+        <Btn
+          testId="toast-info-btn"
+          variant="outline"
+          onClick={() => fire("info")}
+        >
+          Show info toast
+        </Btn>
+      </div>
+      <Result testId="toast-last" label="last toast" value={last} />
+      <Snippet
+        testId="toast-snippet"
+        code={`// Sonner renders toasts with [data-sonner-toast]:
+await page.getByTestId('toast-success-btn').click();
+const success = page.locator('[data-sonner-toast]').filter({ hasText: 'Order placed successfully' });
+await expect(success).toBeVisible();
+await expect(page.getByTestId('toast-last')).toContainText('success:');
+
+await page.getByTestId('toast-error-btn').click();
+await expect(
+  page.locator('[data-sonner-toast]').filter({ hasText: /Payment failed/i })
+).toBeVisible();
+
+// Optional: wait for auto-dismiss (Sonner default ~4s) or close manually:
+// await expect(success).toBeHidden({ timeout: 8000 });`}
+      />
+    </Section>
+  );
+};
 
 /* ----------------------------- 16. Scroll --------------------------------- */
 

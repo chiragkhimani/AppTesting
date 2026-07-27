@@ -1,0 +1,12 @@
+# ---------------------------------------------------------------------------
+# ADD THIS BLOCK to public_html/.htaccess (domain root)
+# Place it BEFORE your main site's SPA fallback rule (the one that sends
+# all unknown paths to /index.html). Without this, /playground/swagger and
+# other /playground/* URLs are captured by the root site and redirect home.
+# ---------------------------------------------------------------------------
+
+RewriteEngine On
+
+# Let /playground/* be handled by public_html/playground/.htaccess
+RewriteCond %{REQUEST_URI} ^/playground(/|$) [NC]
+RewriteRule ^ - [L]

@@ -1,11 +1,13 @@
-"""Backend API tests for QA Demo Store v3 (FastAPI mirror).
+"""Backend API tests for QA Demo Store v4 (FastAPI mirror).
 
 Covers:
 - Public products
 - New public signup flow: POST /api/signup.php (no auth)
 - Login flow: POST /api/auth/login.php (bearer token)
+- Forgot password: POST /api/auth/forgot-password.php (public)
 - Profile: GET /api/profile.php (Bearer)
 - Orders: GET/POST /api/orders.php (Bearer, current-user-only)
+- Cancel order: POST /api/cancel-order.php (Bearer)
 - Server-side total recompute (client-supplied price ignored)
 - Removed endpoint: POST /api/users.php must NOT exist anymore
 """
@@ -65,7 +67,7 @@ class TestProducts:
         assert r.status_code == 200
         data = r.json()
         assert "products" in data
-        assert len(data["products"]) == 6
+        assert len(data["products"]) >= 12
 
     def test_get_product_by_id(self, client):
         r = client.get(f"{API}/products.php", params={"id": 1}, timeout=15)
@@ -200,7 +202,8 @@ def _valid_order_body(items=None):
 
 class TestOrders:
     def test_create_order_server_side_total(self, client, auth_headers):
-        # Backpack=$29.99 x2 + Bike Light=$9.99 x1 = $69.97. Bogus price MUST be ignored.
+        # Backpack=$49.99 x2 + Bike Light=$19.99 x1 = $119.97 subtotal. Bogus price MUST be ignored.
+        # Free shipping (≥ $100) + tax 8% ($9.60) => grand total $129.57
         body = _valid_order_body(items=[
             {"product_id": 1, "quantity": 2, "price": 0.01},
             {"product_id": 2, "quantity": 1, "price": 999999},
@@ -209,7 +212,10 @@ class TestOrders:
         assert r.status_code == 201, r.text
         d = r.json()
         assert d["success"] is True
-        assert d["total"] == 69.97
+        assert d["subtotal"] == 119.97
+        assert d["shipping"] == 0.0
+        assert d["tax"] == 9.60
+        assert d["total"] == 129.57
         assert isinstance(d["order_id"], int)
 
     @pytest.mark.parametrize("missing", ["full_name", "address", "city", "state", "pincode", "phone"])
@@ -250,7 +256,125 @@ class TestOrders:
         assert all(o["user_id"] == prof["id"] for o in orders)
         ids = [o["id"] for o in orders]
         assert ids == sorted(ids, reverse=True)
-        # v3 fields present
+        # v3/v5 fields present
         first = orders[0]
-        for k in ("full_name", "address", "city", "state", "pincode", "phone", "total", "items"):
+        for k in (
+            "full_name", "address", "city", "state", "pincode", "phone",
+            "subtotal", "shipping", "tax", "total", "status", "items",
+        ):
             assert k in first, f"missing {k} in order row"
+        assert first["status"] in ("pending", "cancelled")
+
+
+class TestForgotPassword:
+    def test_forgot_password_updates_and_login_works(self, client):
+        uname = f"TEST_fp_{int(time.time())}"
+        client.post(
+            f"{API}/signup.php",
+            json={"username": uname, "email": f"{uname}@demo.test", "password": "oldpass1"},
+            timeout=15,
+        )
+        r = client.post(
+            f"{API}/auth/forgot-password.php",
+            json={
+                "username": uname,
+                "password": "newpass1",
+                "confirm_password": "newpass1",
+            },
+            timeout=15,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body.get("success") is True
+
+        old = client.post(
+            f"{API}/auth/login.php",
+            json={"username": uname, "password": "oldpass1"},
+            timeout=15,
+        )
+        assert old.status_code == 401
+
+        new = client.post(
+            f"{API}/auth/login.php",
+            json={"username": uname, "password": "newpass1"},
+            timeout=15,
+        )
+        assert new.status_code == 200
+        assert "token" in new.json()
+
+    def test_forgot_password_mismatch_400(self, client):
+        r = client.post(
+            f"{API}/auth/forgot-password.php",
+            json={
+                "username": "standard_user",
+                "password": "abcdef",
+                "confirm_password": "ghijkl",
+            },
+            timeout=15,
+        )
+        assert r.status_code == 400
+
+    def test_forgot_password_unknown_user_404(self, client):
+        r = client.post(
+            f"{API}/auth/forgot-password.php",
+            json={
+                "username": "does_not_exist_xyz",
+                "password": "abcdef",
+                "confirm_password": "abcdef",
+            },
+            timeout=15,
+        )
+        assert r.status_code == 404
+
+
+class TestCancelOrder:
+    def test_cancel_order_success(self, client, auth_headers):
+        created = client.post(
+            f"{API}/orders.php",
+            headers=auth_headers,
+            json=_valid_order_body(items=[{"product_id": 1, "quantity": 1}]),
+            timeout=15,
+        )
+        assert created.status_code == 201, created.text
+        order_id = created.json()["order_id"]
+
+        r = client.post(
+            f"{API}/cancel-order.php",
+            headers=auth_headers,
+            json={"order_id": order_id},
+            timeout=15,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["success"] is True
+        assert body["status"] == "cancelled"
+        assert body["order_id"] == order_id
+
+        listed = client.get(f"{API}/orders.php", headers=auth_headers, timeout=15)
+        match = next(o for o in listed.json()["orders"] if o["id"] == order_id)
+        assert match["status"] == "cancelled"
+
+        again = client.post(
+            f"{API}/cancel-order.php",
+            headers=auth_headers,
+            json={"order_id": order_id},
+            timeout=15,
+        )
+        assert again.status_code == 400
+
+    def test_cancel_order_without_token_401(self, client):
+        r = client.post(
+            f"{API}/cancel-order.php",
+            json={"order_id": 1},
+            timeout=15,
+        )
+        assert r.status_code == 401
+
+    def test_cancel_order_not_found_404(self, client, auth_headers):
+        r = client.post(
+            f"{API}/cancel-order.php",
+            headers=auth_headers,
+            json={"order_id": 999999},
+            timeout=15,
+        )
+        assert r.status_code == 404

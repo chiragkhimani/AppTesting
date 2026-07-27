@@ -1,17 +1,19 @@
 """
 FastAPI mirror of the PHP/MySQL backend for local development.
 
-v3 routes:
+v4 routes:
   Public:
     GET  /api/products
     GET  /api/products?id={id}
     POST /api/auth/login
+    POST /api/auth/forgot-password
     POST /api/signup
   Protected (Authorization: Bearer <token>):
     GET  /api/profile
     GET  /api/orders
     GET  /api/orders?user_id={id}
     POST /api/orders
+    POST /api/cancel-order
 """
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -39,6 +41,24 @@ TOKEN_TTL_HOURS = 24
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PHONE_RE = re.compile(r"^[+\d][\d\s\-()]{5,19}$")
 
+# Match frontend checkoutPricing.js / PHP orders.php
+TAX_RATE = 0.08
+SHIPPING_FLAT = 5.99
+FREE_SHIPPING_MIN = 100.0
+
+
+def order_pricing(subtotal: float) -> dict:
+    subtotal = round(float(subtotal), 2)
+    shipping = 0.0 if subtotal >= FREE_SHIPPING_MIN else SHIPPING_FLAT
+    tax = round(subtotal * TAX_RATE, 2)
+    total = round(subtotal + shipping + tax, 2)
+    return {
+        "subtotal": subtotal,
+        "shipping": round(shipping, 2),
+        "tax": tax,
+        "total": total,
+    }
+
 OPENAPI_TAGS = [
     {"name": "Public", "description": "No authentication required."},
     {"name": "Auth", "description": "Login and account registration."},
@@ -48,11 +68,11 @@ OPENAPI_TAGS = [
 app = FastAPI(
     title="QA Demo Store API",
     description=(
-        "REST API for the QA Demo Store (v3). Mirror of the PHP/MySQL backend for preview/dev.\n\n"
+        "REST API for the QA Demo Store (v4). Mirror of the PHP/MySQL backend for preview/dev.\n\n"
         "**Authentication:** Call `POST /api/auth/login` to obtain a Bearer token (64 hex chars, 24h TTL). "
         "Send it on protected routes as `Authorization: Bearer <token>`.\n\n"
     ),
-    version="3.0.0",
+    version="4.0.0",
     openapi_tags=OPENAPI_TAGS,
 )
 api_router = APIRouter(prefix="/api")
@@ -87,30 +107,54 @@ SEED_USERS = [
 ]
 
 SEED_PRODUCTS = [
-    {"id": 1, "name": "Sauce Labs Backpack",
-     "description": "Carry.allTheThings() with this sleek, streamlined backpack. Padded laptop sleeve, water bottle pocket, and stylish design.",
-     "price": 29.99, "category": "Bags", "stock": 25,
+    {"id": 1, "name": "Urban Commute Backpack",
+     "description": "A slim 20L everyday backpack with a padded 15-inch laptop sleeve, water-resistant exterior, and side bottle pocket. Ideal for office days and short trips.",
+     "price": 49.99, "category": "Bags", "stock": 40,
      "image_url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80"},
-    {"id": 2, "name": "Sauce Labs Bike Light",
-     "description": "A red light isn't the desired state in testing but it sure helps when riding your bike at night. Water-resistant with 3 lighting modes.",
-     "price": 9.99, "category": "Accessories", "stock": 100,
+    {"id": 2, "name": "Trail Glow Bike Light",
+     "description": "Bright USB-rechargeable bike light with three modes (steady, pulse, flash). Weather-sealed housing and tool-free mount for handlebars or helmets.",
+     "price": 19.99, "category": "Accessories", "stock": 120,
      "image_url": "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&q=80"},
-    {"id": 3, "name": "Sauce Labs Bolt T-Shirt",
-     "description": "Get your testing superhero on with the Sauce Labs bolt T-shirt. From American Apparel, 100% ringspun combed cotton, heather gray.",
-     "price": 15.99, "category": "Apparel", "stock": 50,
+    {"id": 3, "name": "Soft Cotton Crew Tee",
+     "description": "Midweight crew-neck T-shirt in breathable ringspun cotton. Pre-washed for a soft hand feel and a clean everyday fit.",
+     "price": 22.99, "category": "Apparel", "stock": 85,
      "image_url": "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600&q=80"},
-    {"id": 4, "name": "Sauce Labs Fleece Jacket",
-     "description": "It's not every day that you come across a midweight quarter-zip fleece jacket capable of handling everything from a relaxing day outdoors to a busy day at the office.",
-     "price": 49.99, "category": "Apparel", "stock": 30,
+    {"id": 4, "name": "All-Weather Fleece Jacket",
+     "description": "Quarter-zip midweight fleece that layers well for cool mornings. Soft brushed interior, zippered hand pockets, and a stand collar.",
+     "price": 64.99, "category": "Apparel", "stock": 35,
      "image_url": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&q=80"},
-    {"id": 5, "name": "Sauce Labs Onesie",
-     "description": "Rib snap infant onesie for the junior automation engineer in development. Reinforced 3-snap bottom closure, two-needle hemmed sleeves.",
-     "price": 7.99, "category": "Apparel", "stock": 80,
+    {"id": 5, "name": "Cloud Soft Baby Onesie",
+     "description": "Gentle organic-cotton onesie with reinforced snaps and expandable shoulders. Soft enough for sensitive skin and easy for quick changes.",
+     "price": 14.99, "category": "Apparel", "stock": 60,
      "image_url": "https://images.unsplash.com/photo-1522771930-78848d9293e8?w=600&q=80"},
-    {"id": 6, "name": "Test.allTheThings() T-Shirt (Red)",
-     "description": "This classic Sauce Labs t-shirt is perfect to wear when cozying up to your keyboard to automate a few tests. Super-soft and comfy ringspun combed cotton.",
-     "price": 15.99, "category": "Apparel", "stock": 40,
+    {"id": 6, "name": "Classic Red Graphic Tee",
+     "description": "Relaxed-fit graphic tee in durable cotton jersey. Colorfast print and a comfortable crew neck for casual wear.",
+     "price": 24.99, "category": "Apparel", "stock": 55,
      "image_url": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&q=80"},
+    {"id": 7, "name": "Everyday Canvas Tote",
+     "description": "Heavyweight canvas tote with reinforced handles and an interior zip pocket. Spacious enough for groceries, books, or a light laptop sleeve.",
+     "price": 27.99, "category": "Bags", "stock": 70,
+     "image_url": "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=600&q=80"},
+    {"id": 8, "name": "Wireless Earbuds Pro",
+     "description": "True wireless earbuds with clear stereo sound, touch controls, and a compact charging case. Up to 24 hours total playtime with the case.",
+     "price": 79.99, "category": "Electronics", "stock": 45,
+     "image_url": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&q=80"},
+    {"id": 9, "name": "Ceramic Pour-Over Mug",
+     "description": "12 oz ceramic mug with a comfortable handle and matte glaze. Microwave-safe and sized for coffee, tea, or desk-side sips.",
+     "price": 16.49, "category": "Home", "stock": 90,
+     "image_url": "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&q=80"},
+    {"id": 10, "name": "Memory Foam Seat Cushion",
+     "description": "Ergonomic seat cushion with supportive memory foam and a breathable cover. Helps reduce pressure during long desk or travel sessions.",
+     "price": 34.99, "category": "Home", "stock": 50,
+     "image_url": "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80"},
+    {"id": 11, "name": "Insulated Travel Tumbler",
+     "description": "20 oz stainless steel tumbler that keeps drinks cold for 24 hours or hot for 8. Spill-resistant lid and slim fit for most cup holders.",
+     "price": 28.99, "category": "Accessories", "stock": 75,
+     "image_url": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=600&q=80"},
+    {"id": 12, "name": "Portable Bluetooth Speaker",
+     "description": "Compact waterproof speaker with punchy bass and a 12-hour battery. Pair quickly over Bluetooth for patio, travel, or desk listening.",
+     "price": 54.99, "category": "Electronics", "stock": 38,
+     "image_url": "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=600&q=80"},
 ]
 
 
@@ -146,15 +190,42 @@ async def seed_database():
         await db.users.insert_many(docs)
         logger.info("Seeded %d users", len(docs))
 
-    if await db.products.count_documents({}) == 0:
+    # Refresh catalog when empty, still on the old Sauce Labs set, or fewer than seed count
+    product_count = await db.products.count_documents({})
+    sample_product = await db.products.find_one({})
+    needs_product_refresh = (
+        product_count == 0
+        or product_count < len(SEED_PRODUCTS)
+        or (sample_product and "Sauce Labs" in str(sample_product.get("name", "")))
+        or (sample_product and "Test.allTheThings" in str(sample_product.get("name", "")))
+    )
+    if needs_product_refresh:
+        await db.products.delete_many({})
         await db.products.insert_many([dict(p) for p in SEED_PRODUCTS])
-        logger.info("Seeded products")
-
+        logger.info("Seeded/refreshed %d products", len(SEED_PRODUCTS))
     # Reset orders if schema lacks v3 fields (full_name/phone)
     sample_order = await db.orders.find_one({})
     if sample_order and ("full_name" not in sample_order or "phone" not in sample_order):
         logger.info("Dropping legacy orders (v3 schema change)")
         await db.orders.drop()
+    else:
+        # v4: backfill missing status on existing orders
+        await db.orders.update_many(
+            {"status": {"$exists": False}},
+            {"$set": {"status": "pending"}},
+        )
+        # v5: legacy totals were item-only — treat as subtotal with $0 tax/shipping
+        async for row in db.orders.find({"subtotal": {"$exists": False}}):
+            await db.orders.update_one(
+                {"id": row["id"]},
+                {
+                    "$set": {
+                        "subtotal": float(row.get("total", 0)),
+                        "shipping": 0.0,
+                        "tax": 0.0,
+                    }
+                },
+            )
 
     await db.auth_tokens.create_index("token", unique=True)
     await db.users.create_index("username", unique=True)
@@ -198,7 +269,11 @@ class OrderOut(BaseModel):
     state: str
     pincode: str
     phone: str
+    subtotal: float = 0
+    shipping: float = 0
+    tax: float = 0
     total: float
+    status: str = "pending"
     created_at: str
     items: List[OrderItemOut]
 
@@ -206,6 +281,17 @@ class OrderOut(BaseModel):
 class LoginRequest(BaseModel):
     username: str = Field(examples=["standard_user"])
     password: str = Field(examples=["secret_sauce"])
+
+
+class ForgotPasswordRequest(BaseModel):
+    username: str = Field(examples=["standard_user"])
+    password: str = Field(min_length=6, examples=["new_secret"])
+    confirm_password: str = Field(min_length=6, examples=["new_secret"])
+
+
+class ForgotPasswordResponse(BaseModel):
+    success: bool
+    message: str
 
 
 class SignupRequest(BaseModel):
@@ -266,7 +352,21 @@ class OrdersListResponse(BaseModel):
 class CreateOrderResponse(BaseModel):
     success: bool
     order_id: int
+    subtotal: float
+    shipping: float
+    tax: float
     total: float
+
+
+class CancelOrderRequest(BaseModel):
+    order_id: int = Field(ge=1, examples=[12])
+
+
+class CancelOrderResponse(BaseModel):
+    success: bool
+    message: str
+    order_id: int
+    status: str
 
 
 class RootResponse(BaseModel):
@@ -325,7 +425,7 @@ async def current_user(
 # ---------- Public routes ----------
 @api_router.get("/", response_model=RootResponse, tags=["Public"], summary="API root")
 async def root():
-    return {"message": "QA Demo Store API v3 – mirror of PHP backend"}
+    return {"message": "QA Demo Store API v4 – mirror of PHP backend"}
 
 
 @api_router.get(
@@ -412,6 +512,48 @@ async def auth_login(payload: LoginRequest):
 
 
 @api_router.post(
+    "/auth/forgot-password.php",
+    response_model=ForgotPasswordResponse,
+    tags=["Auth"],
+    summary="Forgot password (.php alias)",
+    include_in_schema=False,
+)
+@api_router.post(
+    "/auth/forgot-password",
+    response_model=ForgotPasswordResponse,
+    tags=["Auth"],
+    summary="Forgot password",
+    description=(
+        "Demo reset: set a new password by username + new password + confirm. "
+        "Invalidates all existing tokens for that user."
+    ),
+    responses={
+        400: {"description": "Validation error (mismatch / short password)"},
+        403: {"description": "Account locked"},
+        404: {"description": "Username not found"},
+    },
+)
+async def forgot_password(payload: ForgotPasswordRequest):
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Password and confirm_password do not match")
+    user = await db.users.find_one({"username": payload.username.strip()})
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with that username")
+    if user.get("locked"):
+        raise HTTPException(status_code=403, detail="Sorry, this user has been locked out.")
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(payload.password)}},
+    )
+    await db.auth_tokens.delete_many({"user_id": user["id"]})
+    return {
+        "success": True,
+        "message": "Password updated successfully. You can now log in with your new password.",
+    }
+
+
+@api_router.post(
     "/signup.php",
     response_model=SignupResponse,
     status_code=201,
@@ -491,6 +633,12 @@ async def list_orders(
 ):
     query = {"user_id": user_id} if user_id is not None else {"user_id": me["id"]}
     rows = await db.orders.find(query, {"_id": 0}).to_list(1000)
+    for row in rows:
+        row.setdefault("status", "pending")
+        if "subtotal" not in row:
+            row["subtotal"] = float(row.get("total", 0))
+            row["shipping"] = 0.0
+            row["tax"] = 0.0
     rows.sort(key=lambda x: x["id"], reverse=True)
     return {"orders": rows}
 
@@ -519,15 +667,15 @@ async def create_order(order: OrderRequest, user: dict = Depends(current_user)):
     if not order.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
-    # SERVER-SIDE total recompute from DB prices
+    # SERVER-SIDE subtotal from DB prices + tax/shipping
     server_items = []
-    total = 0.0
+    subtotal = 0.0
     for item in order.items:
         p = await db.products.find_one({"id": item.product_id}, {"_id": 0})
         if not p:
             raise HTTPException(status_code=400, detail=f"Unknown product id {item.product_id}")
         line_total = round(float(p["price"]) * item.quantity, 2)
-        total += line_total
+        subtotal += line_total
         server_items.append({
             "product_id": p["id"],
             "name": p["name"],
@@ -535,7 +683,7 @@ async def create_order(order: OrderRequest, user: dict = Depends(current_user)):
             "quantity": item.quantity,
         })
 
-    total = round(total, 2)
+    pricing = order_pricing(subtotal)
     new_id = await _next_id("orders")
     doc = {
         "id": new_id,
@@ -546,12 +694,64 @@ async def create_order(order: OrderRequest, user: dict = Depends(current_user)):
         "state": order.state,
         "pincode": order.pincode,
         "phone": order.phone,
-        "total": total,
+        "subtotal": pricing["subtotal"],
+        "shipping": pricing["shipping"],
+        "tax": pricing["tax"],
+        "total": pricing["total"],
+        "status": "pending",
         "items": server_items,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.orders.insert_one(doc)
-    return {"success": True, "order_id": new_id, "total": total}
+    return {
+        "success": True,
+        "order_id": new_id,
+        "subtotal": pricing["subtotal"],
+        "shipping": pricing["shipping"],
+        "tax": pricing["tax"],
+        "total": pricing["total"],
+    }
+
+
+@api_router.post(
+    "/cancel-order.php",
+    response_model=CancelOrderResponse,
+    tags=["Protected"],
+    summary="Cancel order (.php alias)",
+    include_in_schema=False,
+)
+@api_router.post(
+    "/cancel-order",
+    response_model=CancelOrderResponse,
+    tags=["Protected"],
+    summary="Cancel order",
+    description="Soft-cancels an order owned by the authenticated user (status → cancelled).",
+    responses={
+        400: {"description": "Already cancelled or invalid order_id"},
+        401: {"description": "Missing, invalid, or expired token"},
+        403: {"description": "Order belongs to another user"},
+        404: {"description": "Order not found"},
+    },
+)
+async def cancel_order(payload: CancelOrderRequest, me: dict = Depends(current_user)):
+    order = await db.orders.find_one({"id": payload.order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.get("user_id") != me["id"]:
+        raise HTTPException(status_code=403, detail="You can only cancel your own orders")
+    if order.get("status", "pending") == "cancelled":
+        raise HTTPException(status_code=400, detail="Order is already cancelled")
+
+    await db.orders.update_one(
+        {"id": payload.order_id},
+        {"$set": {"status": "cancelled"}},
+    )
+    return {
+        "success": True,
+        "message": "Order cancelled",
+        "order_id": payload.order_id,
+        "status": "cancelled",
+    }
 
 
 app.include_router(api_router)

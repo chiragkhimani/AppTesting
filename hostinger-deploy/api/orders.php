@@ -1,6 +1,23 @@
 <?php
 require_once __DIR__ . '/db.php';
 
+/** Match frontend checkoutPricing.js */
+const TAX_RATE = 0.08;
+const SHIPPING_FLAT = 5.99;
+const FREE_SHIPPING_MIN = 100.0;
+
+function order_pricing(float $subtotal): array {
+    $shipping = $subtotal >= FREE_SHIPPING_MIN ? 0.0 : SHIPPING_FLAT;
+    $tax = round($subtotal * TAX_RATE, 2);
+    $total = round($subtotal + $shipping + $tax, 2);
+    return [
+        'subtotal' => round($subtotal, 2),
+        'shipping' => round($shipping, 2),
+        'tax'      => $tax,
+        'total'    => $total,
+    ];
+}
+
 $me = require_user(); // protected
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -10,7 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $uid = (int)$me['id']; // default: current user's own orders
     }
     $stmt = db()->prepare(
-        'SELECT id, user_id, full_name, address, city, state, pincode, phone, total, created_at
+        'SELECT id, user_id, full_name, address, city, state, pincode, phone,
+                subtotal, shipping, tax, total, status, created_at
          FROM orders WHERE user_id = :uid ORDER BY id DESC'
     );
     $stmt->execute([':uid' => $uid]);
@@ -36,6 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $result = array_map(function ($o) use ($itemsByOrder) {
+        $subtotal = isset($o['subtotal']) ? (float)$o['subtotal'] : (float)$o['total'];
+        $shipping = isset($o['shipping']) ? (float)$o['shipping'] : 0.0;
+        $tax      = isset($o['tax']) ? (float)$o['tax'] : 0.0;
         return [
             'id'         => (int)$o['id'],
             'user_id'    => $o['user_id'] !== null ? (int)$o['user_id'] : null,
@@ -45,7 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'state'      => $o['state'],
             'pincode'    => $o['pincode'],
             'phone'      => $o['phone'],
+            'subtotal'   => $subtotal,
+            'shipping'   => $shipping,
+            'tax'        => $tax,
             'total'      => (float)$o['total'],
+            'status'     => $o['status'] ?: 'pending',
             'created_at' => $o['created_at'],
             'items'      => $itemsByOrder[(int)$o['id']] ?? [],
         ];
@@ -77,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $priceStmt = $pdo->prepare('SELECT id, name, price FROM products WHERE id = :id LIMIT 1');
 
     $serverItems = [];
-    $total = 0.0;
+    $subtotal = 0.0;
     foreach ($items as $i) {
         $pid = (int)($i['product_id'] ?? 0);
         $qty = max(1, (int)($i['quantity'] ?? 0));
@@ -88,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$p) send_error("Unknown product id $pid", 400);
 
         $line = round((float)$p['price'] * $qty, 2);
-        $total += $line;
+        $subtotal += $line;
         $serverItems[] = [
             'product_id' => (int)$p['id'],
             'name'       => $p['name'],
@@ -96,23 +121,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'quantity'   => $qty,
         ];
     }
-    $total = round($total, 2);
+    $pricing = order_pricing($subtotal);
 
     $pdo->beginTransaction();
     try {
         $oStmt = $pdo->prepare(
-            'INSERT INTO orders (user_id, full_name, address, city, state, pincode, phone, total, created_at)
-             VALUES (:uid, :fn, :a, :c, :s, :pc, :ph, :t, NOW())'
+            'INSERT INTO orders (user_id, full_name, address, city, state, pincode, phone, subtotal, shipping, tax, total, status, created_at)
+             VALUES (:uid, :fn, :a, :c, :s, :pc, :ph, :sub, :ship, :tax, :t, \'pending\', NOW())'
         );
         $oStmt->execute([
-            ':uid' => $me['id'],
-            ':fn'  => $full_name,
-            ':a'   => $address,
-            ':c'   => $city,
-            ':s'   => $state,
-            ':pc'  => $pincode,
-            ':ph'  => $phone,
-            ':t'   => $total,
+            ':uid'  => $me['id'],
+            ':fn'   => $full_name,
+            ':a'    => $address,
+            ':c'    => $city,
+            ':s'    => $state,
+            ':pc'   => $pincode,
+            ':ph'   => $phone,
+            ':sub'  => $pricing['subtotal'],
+            ':ship' => $pricing['shipping'],
+            ':tax'  => $pricing['tax'],
+            ':t'    => $pricing['total'],
         ]);
         $orderId = (int)$pdo->lastInsertId();
 
@@ -138,7 +166,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     send_json([
         'success'  => true,
         'order_id' => $orderId,
-        'total'    => $total,
+        'subtotal' => $pricing['subtotal'],
+        'shipping' => $pricing['shipping'],
+        'tax'      => $pricing['tax'],
+        'total'    => $pricing['total'],
     ], 201);
 }
 

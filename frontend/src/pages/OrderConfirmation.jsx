@@ -6,6 +6,9 @@ const OrderConfirmation = () => {
   const { id } = useParams();
   const { state } = useLocation();
   const total = state?.total;
+  const subtotal = state?.subtotal;
+  const shipping = state?.shipping;
+  const tax = state?.tax;
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -38,28 +41,51 @@ const OrderConfirmation = () => {
             queued and your items will be on their way shortly.
           </p>
 
-          <div className="mt-2 grid w-full grid-cols-2 gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-left">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Order number
-              </div>
-              <div
-                data-testid="order-number"
-                className="mt-1 text-lg font-semibold text-zinc-900"
-              >
-                #{id}
-              </div>
-            </div>
-            {typeof total === "number" && (
+          <div className="mt-2 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-left">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  Total paid
+                  Order number
                 </div>
                 <div
-                  data-testid="order-total"
+                  data-testid="order-number"
                   className="mt-1 text-lg font-semibold text-zinc-900"
                 >
-                  ${total.toFixed(2)}
+                  #{id}
+                </div>
+              </div>
+              {typeof total === "number" && (
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    Total paid
+                  </div>
+                  <div
+                    data-testid="order-total"
+                    className="mt-1 text-lg font-semibold text-zinc-900"
+                  >
+                    ${total.toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+            {typeof subtotal === "number" && (
+              <div
+                data-testid="order-breakdown"
+                className="mt-3 space-y-1 border-t border-zinc-200 pt-3 text-sm text-zinc-600"
+              >
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span data-testid="order-subtotal">${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span data-testid="order-shipping">
+                    {shipping === 0 ? "Free" : `$${Number(shipping).toFixed(2)}`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax</span>
+                  <span data-testid="order-tax">${Number(tax).toFixed(2)}</span>
                 </div>
               </div>
             )}

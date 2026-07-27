@@ -1,45 +1,62 @@
--- QA Demo Store – seed data (run AFTER schema.sql)
--- All passwords below are bcrypt("secret_sauce")
+-- QA Demo Store – refreshed product catalog (12 items)
+-- Safe to run on an existing database: replaces the products table contents.
+-- order_items keep their own name/price snapshots, so past orders are unchanged.
 
-INSERT INTO users (id, username, email, password_hash, first_name, last_name, locked) VALUES
-    (1, 'standard_user',   'standard@demo.test', '$2b$10$QGBi/pmpBPJgEwTikn7O/.2JX1KdOhOWJuWbUdtDjM6qRFHsKPqs6', 'Standard',   'User', 0),
-    (2, 'locked_out_user', 'locked@demo.test',   '$2b$10$QGBi/pmpBPJgEwTikn7O/.2JX1KdOhOWJuWbUdtDjM6qRFHsKPqs6', 'Locked Out', 'User', 1),
-    (3, 'problem_user',    'problem@demo.test',  '$2b$10$QGBi/pmpBPJgEwTikn7O/.2JX1KdOhOWJuWbUdtDjM6qRFHsKPqs6', 'Problem',    'User', 0);
+SET NAMES utf8mb4;
+
+DELETE FROM products;
 
 INSERT INTO products (id, name, description, price, image_url, category, stock) VALUES
     (1, 'Urban Commute Backpack',
         'A slim 20L everyday backpack with a padded 15-inch laptop sleeve, water-resistant exterior, and side bottle pocket. Ideal for office days and short trips.',
         49.99, 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80', 'Bags', 40),
+
     (2, 'Trail Glow Bike Light',
         'Bright USB-rechargeable bike light with three modes (steady, pulse, flash). Weather-sealed housing and tool-free mount for handlebars or helmets.',
         19.99, 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&q=80', 'Accessories', 120),
+
     (3, 'Soft Cotton Crew Tee',
         'Midweight crew-neck T-shirt in breathable ringspun cotton. Pre-washed for a soft hand feel and a clean everyday fit.',
         22.99, 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600&q=80', 'Apparel', 85),
+
     (4, 'All-Weather Fleece Jacket',
         'Quarter-zip midweight fleece that layers well for cool mornings. Soft brushed interior, zippered hand pockets, and a stand collar.',
         64.99, 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&q=80', 'Apparel', 35),
+
     (5, 'Cloud Soft Baby Onesie',
         'Gentle organic-cotton onesie with reinforced snaps and expandable shoulders. Soft enough for sensitive skin and easy for quick changes.',
         14.99, 'https://images.unsplash.com/photo-1522771930-78848d9293e8?w=600&q=80', 'Apparel', 60),
+
     (6, 'Classic Red Graphic Tee',
         'Relaxed-fit graphic tee in durable cotton jersey. Colorfast print and a comfortable crew neck for casual wear.',
         24.99, 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&q=80', 'Apparel', 55),
+
     (7, 'Everyday Canvas Tote',
         'Heavyweight canvas tote with reinforced handles and an interior zip pocket. Spacious enough for groceries, books, or a light laptop sleeve.',
         27.99, 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=600&q=80', 'Bags', 70),
+
     (8, 'Wireless Earbuds Pro',
         'True wireless earbuds with clear stereo sound, touch controls, and a compact charging case. Up to 24 hours total playtime with the case.',
         79.99, 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&q=80', 'Electronics', 45),
+
     (9, 'Ceramic Pour-Over Mug',
         '12 oz ceramic mug with a comfortable handle and matte glaze. Microwave-safe and sized for coffee, tea, or desk-side sips.',
         16.49, 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&q=80', 'Home', 90),
+
     (10, 'Memory Foam Seat Cushion',
         'Ergonomic seat cushion with supportive memory foam and a breathable cover. Helps reduce pressure during long desk or travel sessions.',
         34.99, 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80', 'Home', 50),
+
     (11, 'Insulated Travel Tumbler',
         '20 oz stainless steel tumbler that keeps drinks cold for 24 hours or hot for 8. Spill-resistant lid and slim fit for most cup holders.',
         28.99, 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=600&q=80', 'Accessories', 75),
+
     (12, 'Portable Bluetooth Speaker',
         'Compact waterproof speaker with punchy bass and a 12-hour battery. Pair quickly over Bluetooth for patio, travel, or desk listening.',
         54.99, 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=600&q=80', 'Electronics', 38);
+
+-- Optional: reset AUTO_INCREMENT so the next insert continues after id 12
+ALTER TABLE products AUTO_INCREMENT = 13;
+
+-- Verify
+-- SELECT id, name, category, price, stock FROM products ORDER BY id;

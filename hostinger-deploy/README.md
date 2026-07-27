@@ -10,13 +10,17 @@ hostinger-deploy/
 │   ├── signup.php
 │   ├── profile.php
 │   ├── orders.php
-│   └── auth/login.php
+│   ├── cancel-order.php
+│   └── auth/
+│       ├── login.php
+│       └── forgot-password.php
 ├── swagger/          ← Swagger UI (upload to public_html/playground/swagger/)
 │   ├── index.html
 │   └── openapi.yaml
 ├── sql/
-│   ├── schema.sql    ← Run first in phpMyAdmin
-│   └── seed.sql      ← Run second (3 users + 6 products)
+│   ├── schema.sql         ← Run first in phpMyAdmin (fresh)
+│   ├── seed.sql           ← Run second (3 users + 6 products)
+│   └── migration_v4.sql   ← Existing v3 DB → add orders.status
 ├── .htaccess         ← Upload to public_html/playground/.htaccess (React Router)
 └── DEPLOYMENT.md     ← Step-by-step instructions
 ```

@@ -1,4 +1,4 @@
--- QA Demo Store – v3 schema
+-- QA Demo Store – v5 schema
 -- Run this once on your Hostinger MySQL database (phpMyAdmin → SQL tab).
 
 SET NAMES utf8mb4;
@@ -44,7 +44,11 @@ CREATE TABLE orders (
     state       VARCHAR(80)  NOT NULL,
     pincode     VARCHAR(20)  NOT NULL,
     phone       VARCHAR(30)  NOT NULL,
+    subtotal    DECIMAL(10,2) NOT NULL,
+    shipping    DECIMAL(10,2) NOT NULL DEFAULT 0,
+    tax         DECIMAL(10,2) NOT NULL DEFAULT 0,
     total       DECIMAL(10,2) NOT NULL,
+    status      VARCHAR(20)  NOT NULL DEFAULT 'pending',
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_orders_user (user_id),

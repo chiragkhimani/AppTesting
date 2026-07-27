@@ -1,5 +1,9 @@
-# QA Demo Store – Hostinger Deployment Guide (v3)
+# QA Demo Store – Hostinger Deployment Guide (v4)
 
+> **v4 changes**: public `POST /api/auth/forgot-password` (demo reset by
+> username); protected `POST /api/cancel-order`; orders gain a `status`
+> column (`pending` | `cancelled`).
+>
 > **v3 changes**: new public `POST /api/signup.php`; User Management UI removed
 > (the `POST /api/users.php` admin endpoint is gone — public sign up replaces
 > it); checkout simplified to `full_name + address + city + state + pincode +
@@ -17,13 +21,15 @@ public_html/
     │   └── openapi.yaml
     ├── .htaccess             ← React Router + caching
     └── api/
-        ├── db.php            ← DB connection + helpers + Bearer auth
-        ├── products.php      ← GET / GET?id — public
-        ├── signup.php        ← POST — public, creates a user
-        ├── profile.php       ← GET — Bearer required
-        ├── orders.php        ← GET / GET?user_id / POST — Bearer required
+        ├── db.php                 ← DB connection + helpers + Bearer auth
+        ├── products.php           ← GET / GET?id — public
+        ├── signup.php             ← POST — public, creates a user
+        ├── profile.php            ← GET — Bearer required
+        ├── orders.php             ← GET / GET?user_id / POST — Bearer required
+        ├── cancel-order.php       ← POST — Bearer required, soft-cancel
         └── auth/
-            └── login.php     ← POST — returns Bearer token
+            ├── login.php          ← POST — returns Bearer token
+            └── forgot-password.php← POST — public demo password reset
 ```
 
 Live URLs:
@@ -40,13 +46,15 @@ Live URLs:
 In **phpMyAdmin**:
 
 * **Fresh install:** run `sql/schema.sql`, then `sql/seed.sql`.
-* **Upgrading from v2:** run `sql/migration_v3.sql`. It reshapes the `orders` table (drops `first_name/last_name/zipcode`, adds `full_name/state/pincode/phone`), preserving existing rows.
+* **Upgrading from v2:** run `sql/migration_v3.sql`, then `v4`, then `v5`.
+* **Upgrading from v3:** run `sql/migration_v4.sql`, then `sql/migration_v5.sql`.
+* **Upgrading from v4:** run `sql/migration_v5.sql` (adds `subtotal` / `shipping` / `tax`).
 
 Verify:
 ```sql
 SELECT COUNT(*) FROM users;       -- 3 (seeded) + any signups
-SELECT COUNT(*) FROM products;    -- 6
-SHOW COLUMNS FROM orders;         -- full_name, state, pincode, phone present
+SELECT COUNT(*) FROM products;    -- 12
+SHOW COLUMNS FROM orders;         -- subtotal, shipping, tax, status present
 ```
 
 ---
@@ -135,7 +143,7 @@ curl -i -H "Authorization: Bearer $TOKEN" https://chiragkhimani.in/playground/ap
 
 ---
 
-## 7. API contract (v3)
+## 7. API contract (v4)
 
 All responses are JSON; errors use `{"error":"…","detail":"…"}`.
 
@@ -146,6 +154,7 @@ All responses are JSON; errors use `{"error":"…","detail":"…"}`.
 | `GET  /api/products.php`              | List all products                                         |
 | `GET  /api/products.php?id=N`         | Single product, 404 if missing                            |
 | `POST /api/auth/login.php`            | `{username,password}` → `{token,expires_at,user}`         |
+| `POST /api/auth/forgot-password.php`  | `{username,password,confirm_password}` → update password  |
 | `POST /api/signup.php`                | `{username,email,password}` → 201 `{success,message,user}`|
 
 ### Protected (`Authorization: Bearer <token>`)
@@ -156,6 +165,7 @@ All responses are JSON; errors use `{"error":"…","detail":"…"}`.
 | `GET  /api/orders.php`                | Current user's orders                                     |
 | `GET  /api/orders.php?user_id=N`      | Orders for a specific user                                |
 | `POST /api/orders.php`                | Create order — server recomputes total                    |
+| `POST /api/cancel-order.php`          | `{order_id}` → soft-cancel (`status=cancelled`)           |
 
 **POST `/api/orders.php` body**:
 ```json
@@ -213,16 +223,25 @@ Sign up flow creates additional users via `POST /api/signup.php`.
 | Cart badge                   | `[data-testid="cart-badge"]`              |
 | Cart total                   | `[data-testid="cart-total"]`              |
 
-### Checkout
-| Element            | Selector                              |
-|--------------------|---------------------------------------|
-| Full name          | `[data-testid="checkout-name"]`       |
-| Address            | `[data-testid="checkout-address"]`    |
-| City               | `[data-testid="checkout-city"]`       |
-| State              | `[data-testid="checkout-state"]`      |
-| Pincode            | `[data-testid="checkout-pincode"]`    |
-| Phone              | `[data-testid="checkout-phone"]`      |
-| Place order        | `[data-testid="checkout-button"]`     |
+### Checkout → Review → Place order
+| Element            | Selector                                   |
+|--------------------|--------------------------------------------|
+| Full name          | `[data-testid="checkout-name"]`            |
+| Address            | `[data-testid="checkout-address"]`         |
+| City               | `[data-testid="checkout-city"]`            |
+| State              | `[data-testid="checkout-state"]`           |
+| Pincode            | `[data-testid="checkout-pincode"]`         |
+| Phone              | `[data-testid="checkout-phone"]`           |
+| Card name          | `[data-testid="checkout-card-name"]`       |
+| Card number        | `[data-testid="checkout-card-number"]`     |
+| Card expiry        | `[data-testid="checkout-card-exp"]`        |
+| Card CVV           | `[data-testid="checkout-card-cvv"]`        |
+| Dummy card tip     | `[data-testid="checkout-dummy-card"]`      |
+| Continue to review | `[data-testid="checkout-continue"]`        |
+| Review page title  | `[data-testid="review-title"]`             |
+| Review tax         | `[data-testid="review-tax"]`               |
+| Review shipping    | `[data-testid="review-shipping-cost"]`     |
+| Place order        | `[data-testid="checkout-button"]` (on review) |
 
 ### Orders / Confirmation
 | Element            | Selector                                   |
@@ -254,19 +273,22 @@ hostinger-deploy/
 ├── api/
 │   ├── db.php
 │   ├── products.php
-│   ├── signup.php           ← NEW (public)
-│   ├── profile.php          ← NEW (Bearer)
-│   ├── orders.php           ← updated for v3 fields
+│   ├── signup.php
+│   ├── profile.php
+│   ├── orders.php
+│   ├── cancel-order.php     ← NEW (v4)
 │   └── auth/
-│       └── login.php
+│       ├── login.php
+│       └── forgot-password.php ← NEW (v4)
 ├── swagger/
 │   ├── index.html           ← Swagger UI
-│   └── openapi.yaml         ← OpenAPI 3 spec
+│   └── openapi.yaml         ← OpenAPI 3 spec (v4)
 ├── sql/
-│   ├── schema.sql           ← v3 (fresh install)
+│   ├── schema.sql           ← v4 (fresh install)
 │   ├── seed.sql             ← demo users + products
 │   ├── migration_v2.sql     ← v1 → v2 (legacy)
-│   └── migration_v3.sql     ← v2 → v3
+│   ├── migration_v3.sql     ← v2 → v3
+│   └── migration_v4.sql     ← v3 → v4 (orders.status)
 ├── .htaccess
 ├── DEPLOYMENT.md            ← this file
 └── README.md

@@ -9,6 +9,7 @@ import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
+import ReviewOrder from "./pages/ReviewOrder";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import Orders from "./pages/Orders";
 import TestPage from "./pages/TestPage";
@@ -33,6 +34,7 @@ function App() {
               <Route path="/products/:id" element={<RequireAuth><ProductDetails /></RequireAuth>} />
               <Route path="/cart" element={<RequireAuth><Cart /></RequireAuth>} />
               <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
+              <Route path="/checkout/review" element={<RequireAuth><ReviewOrder /></RequireAuth>} />
               <Route path="/order-confirmation/:id" element={<RequireAuth><OrderConfirmation /></RequireAuth>} />
               <Route path="/orders" element={<RequireAuth><Orders /></RequireAuth>} />
               <Route path="/test" element={<RequireAuth><TestPage /></RequireAuth>} />
