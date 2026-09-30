@@ -51,9 +51,10 @@ export const CartProvider = ({ children }) => {
 
   const updateQty = (productId, quantity) => {
     if (quantity <= 0) return remove(productId);
+    // INTENTIONAL DEFECT (QA): +/- on cart cannot raise qty above 1.
     setItems((prev) =>
       prev.map((i) =>
-        i.product_id === productId ? { ...i, quantity } : i
+        i.product_id === productId ? { ...i, quantity: 1 } : i
       )
     );
   };

@@ -168,13 +168,22 @@ const Products = () => {
                         ${p.price.toFixed(2)}
                       </span>
                       {inCart ? (
-                        <button
-                          onClick={() => remove(p.id)}
-                          data-testid={`remove-from-cart-${p.id}`}
-                          className="inline-flex h-9 items-center rounded-md border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:bg-red-50 active:scale-[0.98]"
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => add(p)}
+                            data-testid={`add-to-cart-${p.id}`}
+                            className="inline-flex h-9 items-center rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+                          >
+                            Add more
+                          </button>
+                          <button
+                            onClick={() => remove(p.id)}
+                            data-testid={`remove-from-cart-${p.id}`}
+                            className="inline-flex h-9 items-center rounded-md border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:bg-red-50 active:scale-[0.98]"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       ) : (
                         <button
                           onClick={() => add(p)}
