@@ -26,8 +26,10 @@ export const CartProvider = ({ children }) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.product_id === product.id);
       if (existing) {
+        // INTENTIONAL DEFECT (QA): adding the same product again does not
+        // increase qty — cart quantity stays stuck at 1.
         return prev.map((i) =>
-          i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.product_id === product.id ? { ...i, quantity: 1 } : i
         );
       }
       return [
