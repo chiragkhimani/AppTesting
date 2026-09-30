@@ -102,24 +102,15 @@ const ProductDetails = () => {
                 In stock: {product.stock}
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6">
                 {has(product.id) ? (
-                  <>
-                    <button
-                      onClick={() => add(product)}
-                      data-testid="detail-add-to-cart"
-                      className="inline-flex h-11 items-center rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700"
-                    >
-                      Add more
-                    </button>
-                    <button
-                      onClick={() => remove(product.id)}
-                      data-testid="detail-remove-from-cart"
-                      className="inline-flex h-11 items-center rounded-md border border-red-200 bg-white px-5 text-sm font-semibold text-red-700 hover:bg-red-50"
-                    >
-                      Remove from cart
-                    </button>
-                  </>
+                  <button
+                    onClick={() => remove(product.id)}
+                    data-testid="detail-remove-from-cart"
+                    className="inline-flex h-11 items-center rounded-md border border-red-200 bg-white px-5 text-sm font-semibold text-red-700 hover:bg-red-50"
+                  >
+                    Remove from cart
+                  </button>
                 ) : (
                   <button
                     onClick={() => add(product)}
