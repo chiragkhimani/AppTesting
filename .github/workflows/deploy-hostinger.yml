@@ -109,6 +109,11 @@ jobs:
     name: Smoke UI (TestNG + Selenium)
     runs-on: ubuntu-latest
     needs: deploy
+    permissions:
+      contents: write
+      checks: write
+      pages: write
+      id-token: write
 
     steps:
       - name: Checkout automation repo
@@ -133,9 +138,48 @@ jobs:
       - name: Run Maven smoke tests (prod playground)
         run: xvfb-run -a mvn -B install
 
-      - name: Upload Surefire reports on failure
-        if: failure()
+      - name: Generate Allure HTML report
+        if: success() || failure()
+        run: |
+          ALLURE_VERSION=2.27.0
+          curl -sLo allure.tgz "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
+          tar -xzf allure.tgz
+          ./allure-${ALLURE_VERSION}/bin/allure generate target/allure-results -o allure-report --clean
+
+      - name: Publish test results (GitHub Checks)
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: success() || failure()
+        with:
+          check_name: Smoke UI automation (TestNG)
+          files: target/surefire-reports/TEST-*.xml
+          comment_mode: off
+
+      - name: Publish Allure report to GitHub Pages
+        if: success() || failure()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: allure-report
+          destination_dir: automation-reports/latest
+          keep_files: true
+
+      - name: Job summary (Allure report)
+        if: success() || failure()
+        env:
+          REPORT_URL: https://chiragkhimani.github.io/AppTesting/automation-reports/latest/index.html
+        run: |
+          {
+            echo "## UI automation report (Allure)"
+            echo ""
+            echo "**[Open latest Allure report](${REPORT_URL})** — timelines, suites, and failure screenshots."
+            echo ""
+            echo "Also download the **allure-report** artifact if GitHub Pages is not enabled yet."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Allure report
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
-          name: surefire-reports
-          path: target/surefire-reports/
+          name: allure-report
+          path: allure-report/
+          retention-days: 30
