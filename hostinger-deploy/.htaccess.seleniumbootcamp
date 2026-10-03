@@ -1,0 +1,41 @@
+# QA Demo Store – Apache config for site root (e.g. seleniumbootcamp.in public_html).
+# Jenkins deploy only — production uses .htaccess under /playground/.
+
+Options -MultiViews
+RewriteEngine On
+RewriteBase /
+
+# Extensionless API: /api/auth/login → /api/auth/login.php
+RewriteCond %{REQUEST_URI} ^/api/ [NC]
+RewriteCond %{REQUEST_URI} !\.php$ [NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.+?)/?$ api/$1.php [L,QSA]
+
+RewriteCond %{REQUEST_URI} ^/api/ [NC]
+RewriteRule ^ - [L]
+
+RewriteRule ^swagger$ /swagger/ [R=301,L]
+RewriteRule ^swagger/$ swagger/index.html [L]
+RewriteCond %{REQUEST_URI} ^/swagger/ [NC]
+RewriteRule ^ - [L]
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^ index.html [L]
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css                 "access plus 1 month"
+    ExpiresByType application/javascript   "access plus 1 month"
+    ExpiresByType image/png                "access plus 1 month"
+    ExpiresByType image/jpeg               "access plus 1 month"
+    ExpiresByType image/svg+xml            "access plus 1 month"
+    ExpiresByType font/woff2               "access plus 1 year"
+</IfModule>
