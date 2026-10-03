@@ -22,15 +22,10 @@ const RequireAuth = ({ children }) => {
   return children;
 };
 
-const routerBasename =
-  process.env.REACT_APP_ROUTER_BASENAME !== undefined
-    ? process.env.REACT_APP_ROUTER_BASENAME
-    : "/playground";
-
 function App() {
   return (
     <div className="App flex min-h-screen flex-col">
-      <BrowserRouter basename={routerBasename}>
+      <BrowserRouter basename="/playground">
         <AuthProvider>
           <CartProvider>
             <div className="flex-1">
