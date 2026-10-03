@@ -10,14 +10,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
+    name: Build frontend
     runs-on: ubuntu-latest
-
-    env:
-      HOSTINGER_HOST: 193.203.185.67
-      HOSTINGER_PORT: "65002"
-      HOSTINGER_USER: u922767486
-      HOSTINGER_TARGET: /home/u922767486/domains/chiragkhimani.in/public_html/playground
 
     steps:
       - name: Checkout
@@ -39,6 +34,37 @@ jobs:
           yarn install --frozen-lockfile
           yarn build
 
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Hostinger
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: production
+      url: https://chiragkhimani.in/playground
+
+    env:
+      HOSTINGER_HOST: 193.203.185.67
+      HOSTINGER_PORT: "65002"
+      HOSTINGER_USER: u922767486
+      HOSTINGER_TARGET: /home/u922767486/domains/chiragkhimani.in/public_html/playground
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -51,8 +77,6 @@ jobs:
 
       - name: Deploy build to Hostinger (rsync over SSH)
         run: |
-          # Deploy the React build output, but keep server-managed folders/files
-          # like /api and /.htaccess that are deployed separately below.
           rsync -az --delete \
             --exclude 'api/' \
             --exclude 'swagger/' \
@@ -81,3 +105,37 @@ jobs:
             hostinger-deploy/.htaccess \
             "${HOSTINGER_USER}@${HOSTINGER_HOST}:${HOSTINGER_TARGET}/.htaccess"
 
+  smoke-ui-tests:
+    name: Smoke UI (TestNG + Selenium)
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: Checkout automation repo
+        uses: actions/checkout@v4
+        with:
+          repository: chiragkhimani/TestNGAutomation-CC
+          ref: master
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install Xvfb (virtual display for headed Chrome)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Maven smoke tests (prod playground)
+        run: xvfb-run -a mvn -B install
+
+      - name: Upload Surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
