@@ -49,10 +49,9 @@ export const CartProvider = ({ children }) => {
 
   const updateQty = (productId, quantity) => {
     if (quantity <= 0) return remove(productId);
-    const cappedQty = Math.min(quantity, 1);
     setItems((prev) =>
       prev.map((i) =>
-        i.product_id === productId ? { ...i, quantity: cappedQty } : i
+        i.product_id === productId ? { ...i, quantity } : i
       )
     );
   };
